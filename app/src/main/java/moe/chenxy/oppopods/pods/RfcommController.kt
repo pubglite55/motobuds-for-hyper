@@ -120,6 +120,21 @@ object RfcommController {
         }
     }
 
+    private var currentWearStatus = WearStatus()
+
+    private fun changeUIWearStatus(status: WearStatus) {
+        Intent(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED).apply {
+            if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
+            putWearStatusExtras(status)
+            this.`package` = BuildConfig.APPLICATION_ID
+            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            mContext!!.sendBroadcast(this)
+        }
+        sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED) {
+            putWearStatusExtras(status)
+        }
+    }
+
     private fun changeUIGameModeStatus(enabled: Boolean) {
         Intent(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED).apply {
             this.putExtra("enabled", enabled)
@@ -147,6 +162,7 @@ object RfcommController {
                 Log.i(TAG, "UI Init")
                 if (::currentBatteryParams.isInitialized)
                     changeUIBatteryStatus(currentBatteryParams)
+                changeUIWearStatus(currentWearStatus)
                 changeUIAncStatus(currentAnc)
                 changeUIGameModeStatus(currentGameMode)
                 changeUITransparencyVocalEnhancementStatus(currentTransparencyVocalEnhancement)
@@ -427,6 +443,20 @@ object RfcommController {
         putExtra("case_connected", status.case?.isConnected == true)
     }
 
+    private fun Intent.putWearStatusExtras(status: WearStatus) {
+        putExtra("left_wear_status", status.left?.value ?: -1)
+        putExtra("right_wear_status", status.right?.value ?: -1)
+        putExtra("case_wear_status", status.case?.value ?: -1)
+    }
+
+    private fun mergeWearStatus(current: WearStatus, update: WearStatus): WearStatus {
+        return WearStatus(
+            left = update.left ?: current.left,
+            right = update.right ?: current.right,
+            case = update.case ?: current.case
+        )
+    }
+
     private fun connectRfcomm(initialDelayMs: Long = 0L) {
         connectionJob?.cancel()
         connectionJob = CoroutineScope(Dispatchers.IO).launch {
@@ -540,6 +570,14 @@ object RfcommController {
         val activeResult = BatteryParser.parseActiveReport(packet)
         if (activeResult != null) {
             handleBatteryChanged(activeResult)
+            return
+        }
+
+        val wearResult = WearStatusParser.parse(packet)
+        if (wearResult != null) {
+            Log.d(TAG, "Wear status received: $wearResult")
+            currentWearStatus = mergeWearStatus(currentWearStatus, wearResult)
+            changeUIWearStatus(currentWearStatus)
             return
         }
 
@@ -733,6 +771,8 @@ object RfcommController {
 
     private suspend fun sendStatusQueryPackets(immediateReconnect: Boolean = true) {
         val reason = if (immediateReconnect) "status query" else null
+        sendPacketSafe(Enums.ENABLE_STATUS_REPORT, reason)
+        delay(50)
         sendPacketSafe(Enums.QUERY_STATUS, reason)
         delay(50)
         sendPacketSafe(Enums.QUERY_BATTERY, reason)

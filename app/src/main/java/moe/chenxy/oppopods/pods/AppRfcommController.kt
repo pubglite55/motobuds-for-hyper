@@ -48,6 +48,9 @@ class AppRfcommController {
     private val _batteryParams = MutableStateFlow(BatteryParams())
     val batteryParams: StateFlow<BatteryParams> = _batteryParams
 
+    private val _wearStatus = MutableStateFlow(WearStatus())
+    val wearStatus: StateFlow<WearStatus> = _wearStatus
+
     private val _ancMode = MutableStateFlow(NoiseControlMode.OFF)
     val ancMode: StateFlow<NoiseControlMode> = _ancMode
 
@@ -190,6 +193,13 @@ class AppRfcommController {
             return
         }
 
+        val wearResult = WearStatusParser.parse(packet)
+        if (wearResult != null) {
+            Log.d(TAG, "Wear status received: $wearResult")
+            _wearStatus.value = mergeWearStatus(_wearStatus.value, wearResult)
+            return
+        }
+
         val transparencyVocalEnhancementResult = TransparencyVocalEnhancementParser.parse(packet)
         if (transparencyVocalEnhancementResult != null) {
             Log.d(TAG, "Transparency vocal enhancement received: $transparencyVocalEnhancementResult")
@@ -297,6 +307,8 @@ class AppRfcommController {
      */
     private fun queryStatus() {
         scope.launch {
+            sendPacket(Enums.ENABLE_STATUS_REPORT)
+            delay(50)
             sendPacket(Enums.QUERY_STATUS)
             delay(50)
             sendPacket(Enums.QUERY_BATTERY)
@@ -320,10 +332,19 @@ class AppRfcommController {
         socket = null
         _connectionState.value = ConnectionState.DISCONNECTED
         _batteryParams.value = BatteryParams()
+        _wearStatus.value = WearStatus()
         _ancMode.value = NoiseControlMode.OFF
         _deviceName.value = ""
         _deviceAddress.value = ""
         _gameMode.value = false
         _transparencyVocalEnhancement.value = false
+    }
+
+    private fun mergeWearStatus(current: WearStatus, update: WearStatus): WearStatus {
+        return WearStatus(
+            left = update.left ?: current.left,
+            right = update.right ?: current.right,
+            case = update.case ?: current.case
+        )
     }
 }

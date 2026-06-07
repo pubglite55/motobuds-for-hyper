@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat
@@ -132,8 +133,9 @@ fun DevicePickerPage(
 
     val btManager = context.getSystemService(BluetoothManager::class.java)
     val adapter = btManager?.adapter
-    val pairedDevices = remember(hasPermission) {
-        adapter?.bondedDevices?.toList()?.sortedByDescending {
+    val bluetoothEnabled = adapter?.isEnabled == true
+    val pairedDevices = remember(hasPermission, bluetoothEnabled) {
+        if (!bluetoothEnabled) emptyList() else adapter?.bondedDevices?.toList()?.sortedByDescending {
             it.name?.contains("oppo", ignoreCase = true) == true
         } ?: emptyList()
     }
@@ -176,24 +178,37 @@ fun DevicePickerPage(
             }
             if (pairedDevices.isEmpty()) {
                 item {
-                    Text(
-                        stringResource(R.string.no_paired_devices),
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (bluetoothEnabled) R.string.no_paired_devices else R.string.bluetooth_disabled
+                            ),
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
-            items(pairedDevices, key = { it.address }) { device ->
-                DeviceRow(
-                    title = device.name ?: stringResource(R.string.unknown_device),
-                    summary = device.address,
-                    connected = device.address == connectedDeviceAddress || (
-                        connectedDeviceAddress.isBlank() &&
-                            connectedDeviceName.isNotBlank() &&
-                            device.name == connectedDeviceName
-                    ),
-                    connecting = device.address == connectingDeviceAddress,
-                    onClick = { onDeviceSelected(device) },
-                )
+            if (bluetoothEnabled) {
+                items(pairedDevices, key = { it.address }) { device ->
+                    DeviceRow(
+                        title = device.name ?: stringResource(R.string.unknown_device),
+                        summary = device.address,
+                        connected = device.address == connectedDeviceAddress || (
+                            connectedDeviceAddress.isBlank() &&
+                                connectedDeviceName.isNotBlank() &&
+                                device.name == connectedDeviceName
+                        ),
+                        connecting = device.address == connectingDeviceAddress,
+                        onClick = { onDeviceSelected(device) },
+                    )
+                }
             }
         }
 

@@ -58,4 +58,52 @@ object AppIcons {
             horizontalLineTo(16.8f)
         }
     }.build()
+
+    val Contacts: ImageVector = ImageVector.Builder(
+        name = "Contacts",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            moveTo(9f, 11f)
+            curveTo(10.7f, 11f, 12f, 9.7f, 12f, 8f)
+            curveTo(12f, 6.3f, 10.7f, 5f, 9f, 5f)
+            curveTo(7.3f, 5f, 6f, 6.3f, 6f, 8f)
+            curveTo(6f, 9.7f, 7.3f, 11f, 9f, 11f)
+            moveTo(4.5f, 18.5f)
+            curveTo(5.1f, 15.8f, 7f, 14f, 9f, 14f)
+            curveTo(11f, 14f, 12.9f, 15.8f, 13.5f, 18.5f)
+            moveTo(15f, 9f)
+            horizontalLineTo(20f)
+            moveTo(15f, 13f)
+            horizontalLineTo(20f)
+            moveTo(15f, 17f)
+            horizontalLineTo(18f)
+        }
+    }.build()
+
+    val RemoveContact: ImageVector = ImageVector.Builder(
+        name = "RemoveContact",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            moveTo(9f, 11f)
+            curveTo(10.7f, 11f, 12f, 9.7f, 12f, 8f)
+            curveTo(12f, 6.3f, 10.7f, 5f, 9f, 5f)
+            curveTo(7.3f, 5f, 6f, 6.3f, 6f, 8f)
+            curveTo(6f, 9.7f, 7.3f, 11f, 9f, 11f)
+            moveTo(4.5f, 18.5f)
+            curveTo(5.1f, 15.8f, 7f, 14f, 9f, 14f)
+            curveTo(10.5f, 14f, 12f, 15f, 13f, 16.7f)
+            moveTo(15f, 15f)
+            lineTo(20f, 20f)
+            moveTo(20f, 15f)
+            lineTo(15f, 20f)
+        }
+    }.build()
 }

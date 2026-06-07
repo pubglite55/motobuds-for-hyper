@@ -5,6 +5,7 @@ object OppoPodsAction {
     const val ACTION_PODS_CONNECTED = "chen.action.oppopods.pods_connected"
     const val ACTION_PODS_DISCONNECTED = "chen.action.oppopods.pods_disconnected"
     const val ACTION_PODS_BATTERY_CHANGED = "chen.action.oppopods.pods_battery_changed"
+    const val ACTION_PODS_WEAR_STATUS_CHANGED = "chen.action.oppopods.pods_wear_status_changed"
     const val ACTION_ANC_SELECT = "chen.action.oppopods.anc_select"
     const val ACTION_PODS_ANC_CHANGED = "chen.action.oppopods.pods_anc_select"
     const val ACTION_GET_PODS_MAC = "chen.action.oppopods.get_pods_mac"

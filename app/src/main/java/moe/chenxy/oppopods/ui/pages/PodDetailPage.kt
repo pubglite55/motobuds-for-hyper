@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import moe.chenxy.oppopods.R
 import moe.chenxy.oppopods.pods.NoiseControlMode
+import moe.chenxy.oppopods.pods.WearStatus
 import moe.chenxy.oppopods.ui.components.AncSwitch
 import moe.chenxy.oppopods.ui.components.PodStatus
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
@@ -40,6 +41,7 @@ fun PodDetailPage(
     bottomContentPadding: Dp = 16.dp,
     podName: String,
     batteryParams: BatteryParams,
+    wearStatus: WearStatus = WearStatus(),
     ancMode: NoiseControlMode,
     onAncModeChange: (NoiseControlMode) -> Unit,
     transparencyVocalEnhancement: Boolean = false,
@@ -90,6 +92,7 @@ fun PodDetailPage(
             ) {
                 podControlItems(
                     batteryParams = batteryParams,
+                    wearStatus = wearStatus,
                     ancMode = ancMode,
                     onAncModeChange = onAncModeChange,
                     transparencyVocalEnhancement = transparencyVocalEnhancement,
@@ -122,6 +125,7 @@ fun PodDetailPage(
 
         podControlItems(
             batteryParams = batteryParams,
+            wearStatus = wearStatus,
             ancMode = ancMode,
             onAncModeChange = onAncModeChange,
             transparencyVocalEnhancement = transparencyVocalEnhancement,
@@ -136,6 +140,7 @@ fun PodDetailPage(
 
 private fun LazyListScope.podControlItems(
     batteryParams: BatteryParams,
+    wearStatus: WearStatus,
     ancMode: NoiseControlMode,
     onAncModeChange: (NoiseControlMode) -> Unit,
     transparencyVocalEnhancement: Boolean,
@@ -149,7 +154,11 @@ private fun LazyListScope.podControlItems(
         Card(
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
-            PodStatus(batteryParams, modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp))
+            PodStatus(
+                batteryParams = batteryParams,
+                wearStatus = wearStatus,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)
+            )
         }
     }
 

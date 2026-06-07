@@ -42,7 +42,8 @@
     <string name="rfcomm_channel_value">Channel %1$d</string>
     <string name="rfcomm_channel_help_title">RFCOMM Channel</string>
     <string name="rfcomm_channel_help_summary">If status is not displayed or connection fails, try switching channels.</string>
-    <string name="no_paired_devices">No paired devices found. Please pair your earphones in system Bluetooth settings first.</string>
+    <string name="no_paired_devices">No paired devices found</string>
+    <string name="bluetooth_disabled">Please enable Bluetooth</string>
     <string name="unknown_device">Unknown Device</string>
     <string name="input_mac_manually">Input MAC Address Manually</string>
     <string name="input_mac_title">Enter Device MAC Address</string>

@@ -54,6 +54,8 @@ import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.AppRfcommController
 import moe.chenxy.oppopods.pods.GameModeImplementation
 import moe.chenxy.oppopods.pods.NoiseControlMode
+import moe.chenxy.oppopods.pods.WearState
+import moe.chenxy.oppopods.pods.WearStatus
 import moe.chenxy.oppopods.ui.components.AppIcons
 import moe.chenxy.oppopods.ui.components.RestartScope
 import moe.chenxy.oppopods.ui.components.RestartScopeDialog
@@ -122,6 +124,7 @@ fun MainUI(
 
     val mainTitle = remember { mutableStateOf("") }
     val batteryParams = remember { mutableStateOf(BatteryParams()) }
+    val wearStatus = remember { mutableStateOf(WearStatus()) }
     val ancMode = remember { mutableStateOf(NoiseControlMode.OFF) }
     val hookConnected = remember { mutableStateOf(false) }
     val gameMode = remember { mutableStateOf(false) }
@@ -173,6 +176,7 @@ fun MainUI(
     val appController = remember { AppRfcommController() }
     val appConnState by appController.connectionState.collectAsState()
     val appBattery by appController.batteryParams.collectAsState()
+    val appWearStatus by appController.wearStatus.collectAsState()
     val appAnc by appController.ancMode.collectAsState()
     val appDeviceName by appController.deviceName.collectAsState()
     val appDeviceAddress by appController.deviceAddress.collectAsState()
@@ -186,6 +190,7 @@ fun MainUI(
     val showEarphoneDetail = canShowDetailPage && !showDevicePicker
 
     val displayBattery = if (isStandaloneConnected) appBattery else batteryParams.value
+    val displayWearStatus = if (isStandaloneConnected) appWearStatus else wearStatus.value
     val displayAnc = if (isStandaloneConnected) appAnc else ancMode.value
     val displayGameMode = if (isStandaloneConnected) appGameMode else gameMode.value
     val displayTransparencyVocalEnhancement = if (isStandaloneConnected) appTransparencyVocalEnhancement else transparencyVocalEnhancement.value
@@ -251,6 +256,15 @@ fun MainUI(
                             p1.getParcelableExtra("status", BatteryParams::class.java)!!
                     }
 
+                    OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED -> {
+                        connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
+                        wearStatus.value = WearStatus(
+                            left = wearStateFromExtra(p1.getIntExtra("left_wear_status", -1)),
+                            right = wearStateFromExtra(p1.getIntExtra("right_wear_status", -1)),
+                            case = wearStateFromExtra(p1.getIntExtra("case_wear_status", -1))
+                        )
+                    }
+
                     OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED -> {
                         gameMode.value = p1.getBooleanExtra("enabled", false)
                     }
@@ -296,6 +310,7 @@ fun MainUI(
         context.registerReceiver(broadcastReceiver, IntentFilter().apply {
             addAction(OppoPodsAction.ACTION_PODS_ANC_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_BATTERY_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTED)
@@ -542,6 +557,7 @@ fun MainUI(
                                         bottomContentPadding = pageBottomContentPadding,
                                         podName = displayTitle.ifEmpty { stringResource(R.string.pod_info) },
                                         batteryParams = displayBattery,
+                                        wearStatus = displayWearStatus,
                                         ancMode = displayAnc,
                                         onAncModeChange = { setAncMode(it) },
                                         transparencyVocalEnhancement = displayTransparencyVocalEnhancement,
@@ -878,6 +894,10 @@ private fun readBluetoothState(context: Context): BluetoothSummary {
             bondedCount = adapter?.bondedDevices?.size ?: 0,
         )
     }.getOrDefault(BluetoothSummary(enabled = false, bondedCount = 0))
+}
+
+private fun wearStateFromExtra(value: Int): WearState? {
+    return WearState.fromValue(value)
 }
 
 private fun isLauncherIconHidden(context: Context): Boolean {

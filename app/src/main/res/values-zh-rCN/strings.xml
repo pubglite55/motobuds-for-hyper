@@ -43,7 +43,8 @@
     <string name="rfcomm_channel_value">信道 %1$d</string>
     <string name="rfcomm_channel_help_title">RFCOMM 信道</string>
     <string name="rfcomm_channel_help_summary">如果遇到状态不显示/连接失败等情况，请尝试切换信道。</string>
-    <string name="no_paired_devices">未找到已配对设备，请先在系统蓝牙设置中配对耳机。</string>
+    <string name="no_paired_devices">未找到已配对的设备</string>
+    <string name="bluetooth_disabled">请开启蓝牙</string>
     <string name="unknown_device">未知设备</string>
     <string name="input_mac_manually">手动输入 MAC 地址</string>
     <string name="input_mac_title">输入设备 MAC 地址</string>

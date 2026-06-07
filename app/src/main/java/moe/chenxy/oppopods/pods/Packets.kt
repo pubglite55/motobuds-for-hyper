@@ -76,6 +76,30 @@ object BatteryComponent {
     const val CASE = 3
 }
 
+/** Wearing-detection component/status values in active reports. */
+object WearComponent {
+    const val LEFT = 1
+    const val RIGHT = 2
+    const val CASE = 3
+}
+
+enum class WearState(val value: Int) {
+    DISCONNECTED(0x00),
+    IN_CASE(0x04),
+    REMOVED(0x05),
+    WEARING(0x07);
+
+    companion object {
+        fun fromValue(value: Int): WearState? = entries.firstOrNull { it.value == value }
+    }
+}
+
+data class WearStatus(
+    val left: WearState? = null,
+    val right: WearState? = null,
+    val case: WearState? = null
+)
+
 /** Feature IDs used by the switch-feature command/query. */
 object GameModeFeature {
     const val LOW_LATENCY = 0x06
@@ -165,6 +189,11 @@ object Enums {
     /** Query battery: AA 07 00 00 06 01 F0 00 00 */
     val QUERY_BATTERY: ByteArray = byteArrayOf(
         0xAA.toByte(), 0x07, 0x00, 0x00, 0x06, 0x01, 0xF0.toByte(), 0x00, 0x00
+    )
+
+    /** Enable active earphone status reports: AA 09 00 00 05 02 3A 02 00 01 02 */
+    val ENABLE_STATUS_REPORT: ByteArray = byteArrayOf(
+        0xAA.toByte(), 0x09, 0x00, 0x00, 0x05, 0x02, 0x3A, 0x02, 0x00, 0x01, 0x02
     )
 
     /** Query ANC mode: AA 09 00 00 0C 01 00 02 00 01 01 */
@@ -331,6 +360,49 @@ object BatteryParser {
         }
 
         return BatteryResult(left, right, case)
+    }
+}
+
+/** Parser for active wearing-detection reports (Cmd=0x0204, payload type=0x02). */
+object WearStatusParser {
+    fun parse(data: ByteArray): WearStatus? {
+        if (data.size < 9) return null
+        if (data[0] != 0xAA.toByte()) return null
+
+        val cmdLow = data[4].toInt() and 0xFF
+        val cmdHigh = data[5].toInt() and 0xFF
+        val cmd = cmdLow or (cmdHigh shl 8)
+        if (cmd != Cmd.ANC_MODE_NOTIFY) return null
+
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        val payloadStart = 9
+        if (data.size < payloadStart + payLen || payLen < 2) return null
+
+        val reportType = data[payloadStart].toInt() and 0xFF
+        if (reportType != 0x02) return null
+
+        val count = data[payloadStart + 1].toInt() and 0xFF
+        if (payLen < 2 + count * 2) return null
+
+        var left: WearState? = null
+        var right: WearState? = null
+        var case: WearState? = null
+
+        for (j in 0 until count) {
+            val idx = payloadStart + 2 + j * 2
+            if (idx + 1 >= data.size) break
+            val component = data[idx].toInt() and 0xFF
+            val state = WearState.fromValue(data[idx + 1].toInt() and 0xFF) ?: continue
+            when (component) {
+                WearComponent.LEFT -> left = state
+                WearComponent.RIGHT -> right = state
+                WearComponent.CASE -> case = state
+            }
+        }
+
+        return WearStatus(left, right, case).takeIf {
+            it.left != null || it.right != null || it.case != null
+        }
     }
 }
 
