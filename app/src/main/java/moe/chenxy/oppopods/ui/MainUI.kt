@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
@@ -27,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,11 +47,9 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
-import moe.chenxy.oppopods.MainActivity
 import moe.chenxy.oppopods.OppoPodsApp
 import moe.chenxy.oppopods.R
 import moe.chenxy.oppopods.config.ConfigManager
-import moe.chenxy.oppopods.pods.AppRfcommController
 import moe.chenxy.oppopods.pods.GameModeImplementation
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearState
@@ -69,6 +67,7 @@ import moe.chenxy.oppopods.utils.RootManager
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Icon
@@ -140,6 +139,9 @@ fun MainUI(
     var connectingDeviceAddress by remember { mutableStateOf<String?>(null) }
     var connectedDeviceAddress by remember { mutableStateOf("") }
     var showConnectErrorDialog by remember { mutableStateOf(false) }
+    var hookConnectionState by remember { mutableStateOf("disconnected") }
+    var lastBluetoothServiceAliveMs by remember { mutableStateOf(0L) }
+    var bluetoothServiceResponsive by remember { mutableStateOf(false) }
     val backgroundColor = appBackground()
     val overlayBottomBar = floatingBottomBar.value || blurBottomBar.value
     val pageBottomContentPadding = if (overlayBottomBar) 104.dp else 28.dp
@@ -173,32 +175,15 @@ fun MainUI(
     // Adaptive模式偏好设置（持久化存储），默认开启
     val adaptiveMode = remember { mutableStateOf(prefs.getBoolean("adaptive_mode", true)) }
 
-    val appController = remember { AppRfcommController() }
-    val appConnState by appController.connectionState.collectAsState()
-    val appBattery by appController.batteryParams.collectAsState()
-    val appWearStatus by appController.wearStatus.collectAsState()
-    val appAnc by appController.ancMode.collectAsState()
-    val appDeviceName by appController.deviceName.collectAsState()
-    val appDeviceAddress by appController.deviceAddress.collectAsState()
-    val appGameMode by appController.gameMode.collectAsState()
-    val appTransparencyVocalEnhancement by appController.transparencyVocalEnhancement.collectAsState()
-
-    val isStandaloneConnected = appConnState == AppRfcommController.ConnectionState.CONNECTED
-    val isConnecting = appConnState == AppRfcommController.ConnectionState.CONNECTING
-    val isError = appConnState == AppRfcommController.ConnectionState.ERROR
-    val canShowDetailPage = hookConnected.value || isStandaloneConnected
+    val canShowDetailPage = hookConnected.value
     val showEarphoneDetail = canShowDetailPage && !showDevicePicker
 
-    val displayBattery = if (isStandaloneConnected) appBattery else batteryParams.value
-    val displayWearStatus = if (isStandaloneConnected) appWearStatus else wearStatus.value
-    val displayAnc = if (isStandaloneConnected) appAnc else ancMode.value
-    val displayGameMode = if (isStandaloneConnected) appGameMode else gameMode.value
-    val displayTransparencyVocalEnhancement = if (isStandaloneConnected) appTransparencyVocalEnhancement else transparencyVocalEnhancement.value
-    val displayTitle = when {
-        hookConnected.value -> mainTitle.value
-        isStandaloneConnected -> appDeviceName
-        else -> ""
-    }
+    val displayBattery = batteryParams.value
+    val displayWearStatus = wearStatus.value
+    val displayAnc = ancMode.value
+    val displayGameMode = gameMode.value
+    val displayTransparencyVocalEnhancement = transparencyVocalEnhancement.value
+    val displayTitle = if (hookConnected.value) mainTitle.value else ""
 
     LaunchedEffect(displayTitle) {
         if (displayTitle.isNotEmpty()) {
@@ -213,17 +198,16 @@ fun MainUI(
         }
     }
 
-    LaunchedEffect(isStandaloneConnected) {
-        if (isStandaloneConnected) {
+    LaunchedEffect(hookConnectionState) {
+        if (hookConnectionState == "connected") {
+            val shouldOpenEarphones = connectingDeviceAddress != null
             connectingDeviceAddress = null
             showConnectErrorDialog = false
             showDevicePicker = false
-            selectedTab = MainTab.Earphones
-        }
-    }
-
-    LaunchedEffect(isError) {
-        if (isError) {
+            if (shouldOpenEarphones) {
+                selectedTab = MainTab.Earphones
+            }
+        } else if (hookConnectionState == "error") {
             connectingDeviceAddress = null
             showConnectErrorDialog = true
             showDevicePicker = true
@@ -275,21 +259,41 @@ fun MainUI(
 
                     OppoPodsAction.ACTION_PODS_CONNECTED -> {
                         val deviceName = p1.getStringExtra("device_name")
+                        val shouldOpenEarphones = connectingDeviceAddress != null || !hasAppliedDefaultTab
                         connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
                         mainTitle.value = deviceName ?: ""
                         hookConnected.value = true
-                        showDevicePicker = false
-                        selectedTab = MainTab.Earphones
+                        hookConnectionState = "connected"
+                        if (shouldOpenEarphones) {
+                            showDevicePicker = false
+                            selectedTab = MainTab.Earphones
+                            hasAppliedDefaultTab = true
+                        }
                         Log.i("OppoPods", "pod connected via hook: $deviceName")
+                    }
+
+                    OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED -> {
+                        hookConnectionState = p1.getStringExtra("state") ?: hookConnectionState
+                        if (hookConnectionState == "disconnected") {
+                            connectedDeviceAddress = ""
+                            mainTitle.value = ""
+                        } else {
+                            connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
+                            p1.getStringExtra("device_name")?.let { mainTitle.value = it }
+                        }
+                        hookConnected.value = hookConnectionState == "connected"
                     }
 
                     OppoPodsAction.ACTION_PODS_DISCONNECTED -> {
                         mainTitle.value = ""
                         connectedDeviceAddress = ""
+                        hookConnectionState = "disconnected"
                         hookConnected.value = false
-                        if (p0 is MainActivity) {
-                            p0.finish()
-                        }
+                    }
+
+                    OppoPodsAction.ACTION_MODULE_BLUETOOTH_SERVICE_ALIVE -> {
+                        lastBluetoothServiceAliveMs = SystemClock.elapsedRealtime()
+                        bluetoothServiceResponsive = true
                     }
 
                     BluetoothAdapter.ACTION_STATE_CHANGED,
@@ -314,27 +318,49 @@ fun MainUI(
             addAction(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTED)
+            addAction(OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DISCONNECTED)
+            addAction(OppoPodsAction.ACTION_MODULE_BLUETOOTH_SERVICE_ALIVE)
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
-        context.sendBroadcast(Intent(OppoPodsAction.ACTION_PODS_UI_INIT))
+        context.sendBroadcast(Intent(OppoPodsAction.ACTION_PODS_UI_INIT).apply {
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        })
 
         onDispose {
+            context.sendBroadcast(Intent(OppoPodsAction.ACTION_PODS_UI_CLOSED).apply {
+                setPackage("com.android.bluetooth")
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            })
             try {
                 context.unregisterReceiver(broadcastReceiver)
             } catch (_: Exception) {}
             OppoPodsApp.removeServiceListener(serviceListener)
-            appController.disconnect()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            context.sendBroadcast(Intent(OppoPodsAction.ACTION_PODS_UI_INIT).apply {
+                setPackage("com.android.bluetooth")
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            })
+            delay(30_000L)
+        }
+    }
+
+    LaunchedEffect(lastBluetoothServiceAliveMs) {
+        while (true) {
+            bluetoothServiceResponsive = lastBluetoothServiceAliveMs > 0L &&
+                    SystemClock.elapsedRealtime() - lastBluetoothServiceAliveMs <= 75_000L
+            delay(5_000L)
         }
     }
 
     fun setAncMode(mode: NoiseControlMode) {
-        if (isStandaloneConnected) {
-            appController.setANCMode(mode)
-            return
-        }
         ancMode.value = mode
         val status = when (mode) {
             NoiseControlMode.OFF -> 1
@@ -348,30 +374,28 @@ fun MainUI(
         }
         Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
             this.putExtra("status", status)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
 
     fun setGameMode(enabled: Boolean) {
-        if (isStandaloneConnected) {
-            appController.setGameMode(enabled)
-            return
-        }
         gameMode.value = enabled
         Intent(OppoPodsAction.ACTION_GAME_MODE_SET).apply {
             this.putExtra("enabled", enabled)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
 
     fun setTransparencyVocalEnhancement(enabled: Boolean) {
-        if (isStandaloneConnected) {
-            appController.setTransparencyVocalEnhancement(enabled)
-            return
-        }
         transparencyVocalEnhancement.value = enabled
         Intent(OppoPodsAction.ACTION_TRANSPARENCY_VOCAL_ENHANCEMENT_SET).apply {
             this.putExtra("enabled", enabled)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
@@ -381,28 +405,46 @@ fun MainUI(
         connectedDeviceAddress = device.address
         showConnectErrorDialog = false
         showDevicePicker = true
-        appController.connect(
-            device = device,
-            autoGameMode = autoGameMode.value,
-            gameModeImplementation = gameModeImplementation.value,
-            rfcommChannel = rfcommChannel.value,
-        )
+        hookConnectionState = "connecting"
+        Intent(OppoPodsAction.ACTION_CONNECT_POD_REQUEST).apply {
+            putExtra("device", device)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun onDeviceDisconnect(device: BluetoothDevice) {
+        connectingDeviceAddress = null
+        if (device.address == connectedDeviceAddress) {
+            hookConnected.value = false
+            hookConnectionState = "disconnected"
+            connectedDeviceAddress = ""
+            mainTitle.value = ""
+        }
+        Intent(OppoPodsAction.ACTION_DISCONNECT_POD_REQUEST).apply {
+            putExtra("device", device)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun onConnectedDeviceClick() {
+        if (connectedDeviceAddress.isBlank() && mainTitle.value.isBlank()) return
+        hookConnected.value = true
+        hookConnectionState = "connected"
+        showDevicePicker = false
+        selectedTab = MainTab.Earphones
     }
 
     fun backToDevicePicker() {
         showDevicePicker = true
-        appController.disconnect()
-        hookConnected.value = false
-        connectedDeviceAddress = ""
-        mainTitle.value = ""
     }
 
     @SuppressLint("MissingPermission")
     fun openSystemHeadsetSettings() {
-        val address = when {
-            isStandaloneConnected -> appDeviceAddress
-            else -> connectedDeviceAddress
-        }
+        val address = connectedDeviceAddress
         if (address.isBlank()) {
             Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show()
             return
@@ -428,9 +470,7 @@ fun MainUI(
     }
 
     fun refreshStatus() {
-        if (isStandaloneConnected) {
-            appController.refreshStatus()
-        } else if (hookConnected.value) {
+        if (hookConnected.value) {
             context.sendBroadcast(Intent(OppoPodsAction.ACTION_REFRESH_STATUS))
         }
     }
@@ -536,6 +576,7 @@ fun MainUI(
                                     .overScrollVertical()
                                     .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                                 xposedService = xposedService,
+                                bluetoothServiceResponsive = bluetoothServiceResponsive,
                                 bluetoothEnabled = bluetoothState.enabled,
                                 bondedDeviceCount = bluetoothState.bondedCount,
                                 bottomContentPadding = pageBottomContentPadding,
@@ -569,19 +610,20 @@ fun MainUI(
 
                                     else -> DevicePickerPage(
                                         connectedDeviceName = displayTitle,
-                                        connectedDeviceAddress = if (isStandaloneConnected) appDeviceAddress else "",
+                                        connectedDeviceAddress = connectedDeviceAddress,
                                         connectingDeviceAddress = connectingDeviceAddress,
                                         showConnectError = showConnectErrorDialog,
                                         rfcommChannel = rfcommChannel.value,
                                         bottomContentPadding = pageBottomContentPadding,
                                         onDeviceSelected = { onDeviceSelected(it) },
+                                        onConnectedDeviceClick = { onConnectedDeviceClick() },
+                                        onDeviceDisconnect = { onDeviceDisconnect(it) },
                                         onRfcommChannelChange = {
                                             rfcommChannel.value = it
                                             ConfigManager.updateRfcommChannel(prefs, xposedService, it)
                                         },
                                         onDismissConnectError = {
                                             showConnectErrorDialog = false
-                                            appController.disconnect()
                                         },
                                     )
                                 }
@@ -631,7 +673,6 @@ fun MainUI(
                                 gameModeImplementation = gameModeImplementation,
                                 onGameModeImplementationChange = {
                                     gameModeImplementation.value = it
-                                    appController.setGameModeImplementation(it)
                                     prefs.edit()
                                         .putString(GameModeImplementation.PREF_KEY, it.preferenceValue)
                                         .apply()

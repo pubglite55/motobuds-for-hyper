@@ -5,6 +5,10 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,11 +23,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -54,6 +61,7 @@ import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.overlay.OverlayCascadingListPopup
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Tune
 import top.yukonga.miuix.kmp.theme.LocalDismissState
@@ -70,6 +78,8 @@ fun DevicePickerPage(
     rfcommChannel: Int = 15,
     bottomContentPadding: Dp = 16.dp,
     onDeviceSelected: (BluetoothDevice) -> Unit,
+    onConnectedDeviceClick: () -> Unit = {},
+    onDeviceDisconnect: (BluetoothDevice) -> Unit = {},
     onRfcommChannelChange: (Int) -> Unit = {},
     onDismissConnectError: () -> Unit = {},
 ) {
@@ -89,6 +99,7 @@ fun DevicePickerPage(
     var macInput by remember { mutableStateOf("") }
     var showRfcommPopup by remember { mutableStateOf(false) }
     var showRfcommHelpDialog by remember { mutableStateOf(false) }
+    var bluetoothRefreshToken by remember { mutableStateOf(0) }
     val rfcommChannels = remember { ConfigManager.RFCOMM_CHANNELS }
     val rfcommEntries = remember(rfcommChannel) {
         listOf(
@@ -115,6 +126,25 @@ fun DevicePickerPage(
         }
     }
 
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED ||
+                    intent?.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED
+                ) {
+                    bluetoothRefreshToken++
+                }
+            }
+        }
+        context.registerReceiver(receiver, IntentFilter().apply {
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        }, Context.RECEIVER_EXPORTED)
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+        }
+    }
+
     if (!hasPermission) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -134,7 +164,7 @@ fun DevicePickerPage(
     val btManager = context.getSystemService(BluetoothManager::class.java)
     val adapter = btManager?.adapter
     val bluetoothEnabled = adapter?.isEnabled == true
-    val pairedDevices = remember(hasPermission, bluetoothEnabled) {
+    val pairedDevices = remember(hasPermission, bluetoothEnabled, bluetoothRefreshToken) {
         if (!bluetoothEnabled) emptyList() else adapter?.bondedDevices?.toList()?.sortedByDescending {
             it.name?.contains("oppo", ignoreCase = true) == true
         } ?: emptyList()
@@ -197,16 +227,18 @@ fun DevicePickerPage(
             }
             if (bluetoothEnabled) {
                 items(pairedDevices, key = { it.address }) { device ->
+                    val connected = device.address == connectedDeviceAddress || (
+                        connectedDeviceAddress.isBlank() &&
+                            connectedDeviceName.isNotBlank() &&
+                            device.name == connectedDeviceName
+                    )
                     DeviceRow(
                         title = device.name ?: stringResource(R.string.unknown_device),
                         summary = device.address,
-                        connected = device.address == connectedDeviceAddress || (
-                            connectedDeviceAddress.isBlank() &&
-                                connectedDeviceName.isNotBlank() &&
-                                device.name == connectedDeviceName
-                        ),
+                        connected = connected,
                         connecting = device.address == connectingDeviceAddress,
-                        onClick = { onDeviceSelected(device) },
+                        onClick = { if (connected) onConnectedDeviceClick() else onDeviceSelected(device) },
+                        onDisconnect = { onDeviceDisconnect(device) },
                     )
                 }
             }
@@ -297,6 +329,7 @@ private fun DeviceRow(
     connected: Boolean,
     connecting: Boolean,
     onClick: () -> Unit,
+    onDisconnect: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -324,6 +357,18 @@ private fun DeviceRow(
             }
             if (connecting) {
                 InfiniteProgressIndicator()
+            } else if (connected) {
+                IconButton(
+                    modifier = Modifier.size(32.dp),
+                    onClick = onDisconnect,
+                ) {
+                    Icon(
+                        modifier = Modifier.size(18.dp),
+                        imageVector = MiuixIcons.Close,
+                        contentDescription = null,
+                        tint = Color(0xFFFF5A52),
+                    )
+                }
             }
         }
     }

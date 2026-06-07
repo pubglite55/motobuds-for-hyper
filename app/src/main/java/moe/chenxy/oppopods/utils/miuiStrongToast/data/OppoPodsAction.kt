@@ -2,8 +2,13 @@ package moe.chenxy.oppopods.utils.miuiStrongToast.data
 
 object OppoPodsAction {
     const val ACTION_PODS_UI_INIT = "chen.action.oppopods.ui_init"
+    const val ACTION_PODS_UI_CLOSED = "chen.action.oppopods.ui_closed"
+    const val ACTION_MODULE_BLUETOOTH_SERVICE_ALIVE = "chen.action.oppopods.module_bluetooth_service_alive"
     const val ACTION_PODS_CONNECTED = "chen.action.oppopods.pods_connected"
     const val ACTION_PODS_DISCONNECTED = "chen.action.oppopods.pods_disconnected"
+    const val ACTION_CONNECT_POD_REQUEST = "chen.action.oppopods.connect_pod_request"
+    const val ACTION_DISCONNECT_POD_REQUEST = "chen.action.oppopods.disconnect_pod_request"
+    const val ACTION_PODS_CONNECTION_STATE_CHANGED = "chen.action.oppopods.pods_connection_state_changed"
     const val ACTION_PODS_BATTERY_CHANGED = "chen.action.oppopods.pods_battery_changed"
     const val ACTION_PODS_WEAR_STATUS_CHANGED = "chen.action.oppopods.pods_wear_status_changed"
     const val ACTION_ANC_SELECT = "chen.action.oppopods.anc_select"

@@ -43,6 +43,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun HomePage(
     modifier: Modifier = Modifier,
     xposedService: XposedService?,
+    bluetoothServiceResponsive: Boolean,
     bluetoothEnabled: Boolean,
     bondedDeviceCount: Int,
     bottomContentPadding: Dp = 16.dp,
@@ -58,6 +59,7 @@ fun HomePage(
         item {
             StatusGrid(
                 active = xposedService != null,
+                bluetoothServiceResponsive = bluetoothServiceResponsive,
                 bluetoothEnabled = bluetoothEnabled,
                 bondedDeviceCount = bondedDeviceCount,
             )
@@ -69,7 +71,7 @@ fun HomePage(
 }
 
 @Composable
-private fun StatusGrid(active: Boolean, bluetoothEnabled: Boolean, bondedDeviceCount: Int) {
+private fun StatusGrid(active: Boolean, bluetoothServiceResponsive: Boolean, bluetoothEnabled: Boolean, bondedDeviceCount: Int) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth >= 600.dp) {
             Row(
@@ -77,7 +79,7 @@ private fun StatusGrid(active: Boolean, bluetoothEnabled: Boolean, bondedDeviceC
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StatusCard(active = active, modifier = Modifier.weight(1f).height(112.dp))
+                StatusCard(active = active, bluetoothServiceResponsive = bluetoothServiceResponsive, modifier = Modifier.weight(1f).height(112.dp))
                 StatCard(title = "蓝牙状态", value = if (bluetoothEnabled) "已开启" else "未开启", modifier = Modifier.weight(1f).height(112.dp))
                 StatCard(title = "配对蓝牙", value = bondedDeviceCount.toString(), modifier = Modifier.weight(1f).height(112.dp))
             }
@@ -87,7 +89,7 @@ private fun StatusGrid(active: Boolean, bluetoothEnabled: Boolean, bondedDeviceC
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StatusCard(active = active, modifier = Modifier.weight(1f).aspectRatio(1f))
+                StatusCard(active = active, bluetoothServiceResponsive = bluetoothServiceResponsive, modifier = Modifier.weight(1f).aspectRatio(1f))
                 Column(
                     modifier = Modifier.weight(1f).aspectRatio(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -101,9 +103,18 @@ private fun StatusGrid(active: Boolean, bluetoothEnabled: Boolean, bondedDeviceC
 }
 
 @Composable
-private fun StatusCard(active: Boolean, modifier: Modifier = Modifier) {
-    val statusColor = if (active) Color(0xFF36D167) else Color(0xFFFF5A52)
-    val statusBackground = if (active) Color(0xFFDFFAE4) else Color(0xFFFFE5E3)
+private fun StatusCard(active: Boolean, bluetoothServiceResponsive: Boolean, modifier: Modifier = Modifier) {
+    val serviceTimeout = active && !bluetoothServiceResponsive
+    val statusColor = when {
+        !active -> Color(0xFFFF5A52)
+        serviceTimeout -> Color(0xFFFF9F0A)
+        else -> Color(0xFF36D167)
+    }
+    val statusBackground = when {
+        !active -> Color(0xFFFFE5E3)
+        serviceTimeout -> Color(0xFFFFF0D7)
+        else -> Color(0xFFDFFAE4)
+    }
     Card(
         modifier = modifier,
         colors = CardDefaults.defaultColors(color = statusBackground),
@@ -122,16 +133,28 @@ private fun StatusCard(active: Boolean, modifier: Modifier = Modifier) {
             }
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 Text(
-                    text = if (active) "模块已激活" else "模块未激活",
+                    text = when {
+                        !active -> "LSPosed 未激活"
+                        serviceTimeout -> "模块服务超时"
+                        else -> "模块已激活"
+                    },
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF101010),
                 )
                 Text(
-                    text = if (active) "LSPosed 服务已连接" else "等待 LSPosed 服务连接",
+                    text = when {
+                        !active -> "等待 LSPosed 服务连接"
+                        serviceTimeout -> "模块服务未响应"
+                        else -> "模块服务已连接"
+                    },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF2F3A32).copy(alpha = 0.78f),
+                    color = when {
+                        !active -> Color(0xFFFF5A52)
+                        serviceTimeout -> Color(0xFFFF9F0A)
+                        else -> Color(0xFF2F3A32).copy(alpha = 0.78f)
+                    },
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }

@@ -39,6 +39,8 @@ import java.util.concurrent.atomic.AtomicInteger
 object RfcommController {
     private const val TAG = "OppoPods-RfcommController"
     private const val AUTO_RECONNECT_DELAY_MS = 120_000L
+    private const val BATTERY_POLL_INTERVAL_MS = 30_000L
+    private const val APP_UI_ACTIVE_TIMEOUT_MS = 75_000L
 
     // Basic Objects
     private var socket: BluetoothSocket? = null
@@ -69,19 +71,25 @@ object RfcommController {
     private var cachedDeviceName: String = ""
     private var receiverRegistered = false
     private var routeScanStarted = false
+    private var appUiActive = false
+    private var appUiActiveUntilMs = 0L
 
     data class StatusSnapshot(
         val battery: BatteryParams?,
         val anc: Int,
         val transparencyVocalEnhancement: Boolean,
         val address: String?,
-        val deviceName: String?
+        val deviceName: String?,
+        val connected: Boolean,
+        val connecting: Boolean,
+        val reconnectPending: Boolean,
     )
 
     // RFCOMM jobs
     private var connectionJob: kotlinx.coroutines.Job? = null
     private var reconnectJob: kotlinx.coroutines.Job? = null
     private var readerJob: kotlinx.coroutines.Job? = null
+    private var batteryPollJob: kotlinx.coroutines.Job? = null
     private val reconnectAttempts = AtomicInteger(0)
     private var reconnectPending = false
 
@@ -93,12 +101,9 @@ object RfcommController {
 
     private fun changeUIAncStatus(status: Int) {
         if (status < 1 || status > 8) return
-        Intent(OppoPodsAction.ACTION_PODS_ANC_CHANGED).apply {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
             if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
             this.putExtra("status", status)
-            this.`package` = BuildConfig.APPLICATION_ID
-            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            mContext!!.sendBroadcast(this)
         }
         sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
             putExtra("status", status)
@@ -106,13 +111,10 @@ object RfcommController {
     }
 
     private fun changeUIBatteryStatus(status: BatteryParams) {
-        Intent(OppoPodsAction.ACTION_PODS_BATTERY_CHANGED).apply {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_BATTERY_CHANGED) {
             if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
             this.putExtra("status", status)
             putBatteryExtras(status)
-            this.`package` = BuildConfig.APPLICATION_ID
-            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            mContext!!.sendBroadcast(this)
         }
         sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_BATTERY_CHANGED) {
             putExtra("status", status)
@@ -123,12 +125,9 @@ object RfcommController {
     private var currentWearStatus = WearStatus()
 
     private fun changeUIWearStatus(status: WearStatus) {
-        Intent(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED).apply {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED) {
             if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
             putWearStatusExtras(status)
-            this.`package` = BuildConfig.APPLICATION_ID
-            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            mContext!!.sendBroadcast(this)
         }
         sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED) {
             putWearStatusExtras(status)
@@ -136,20 +135,14 @@ object RfcommController {
     }
 
     private fun changeUIGameModeStatus(enabled: Boolean) {
-        Intent(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED).apply {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED) {
             this.putExtra("enabled", enabled)
-            this.`package` = BuildConfig.APPLICATION_ID
-            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            mContext!!.sendBroadcast(this)
         }
     }
 
     private fun changeUITransparencyVocalEnhancementStatus(enabled: Boolean) {
-        Intent(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED).apply {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED) {
             this.putExtra("enabled", enabled)
-            this.`package` = BuildConfig.APPLICATION_ID
-            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            mContext!!.sendBroadcast(this)
         }
         sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED) {
             putExtra("enabled", enabled)
@@ -159,23 +152,29 @@ object RfcommController {
     fun handleUIEvent(intent: Intent) {
         when (intent.action) {
             OppoPodsAction.ACTION_PODS_UI_INIT -> {
+                markAppUiActive()
                 Log.i(TAG, "UI Init")
+                changeUIConnectionState(currentConnectionState())
                 if (::currentBatteryParams.isInitialized)
                     changeUIBatteryStatus(currentBatteryParams)
                 changeUIWearStatus(currentWearStatus)
                 changeUIAncStatus(currentAnc)
                 changeUIGameModeStatus(currentGameMode)
                 changeUITransparencyVocalEnhancementStatus(currentTransparencyVocalEnhancement)
-                Intent(OppoPodsAction.ACTION_PODS_CONNECTED).apply {
-                    this.putExtra("address", mDevice.address)
-                    this.putExtra("device_name", mDevice.name ?: cachedDeviceName)
-                    this.`package` = BuildConfig.APPLICATION_ID
-                    this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                    mContext!!.sendBroadcast(this)
+                if (::mDevice.isInitialized && isConnected) {
+                    sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
+                        this.putExtra("address", mDevice.address)
+                        this.putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                    }
+                    sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
+                        putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                    }
                 }
-                sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
-                    putExtra("device_name", mDevice.name ?: cachedDeviceName)
-                }
+            }
+            OppoPodsAction.ACTION_PODS_UI_CLOSED -> {
+                appUiActive = false
+                appUiActiveUntilMs = 0L
+                Log.i(TAG, "UI Closed")
             }
             OppoPodsAction.ACTION_ANC_SELECT -> {
                 val status = intent.getIntExtra("status", 0)
@@ -223,8 +222,52 @@ object RfcommController {
             anc = currentAnc,
             transparencyVocalEnhancement = currentTransparencyVocalEnhancement,
             address = if (::mDevice.isInitialized) mDevice.address else null,
-            deviceName = if (::mDevice.isInitialized) mDevice.name ?: cachedDeviceName else cachedDeviceName.takeIf { it.isNotEmpty() }
+            deviceName = if (::mDevice.isInitialized) mDevice.name ?: cachedDeviceName else cachedDeviceName.takeIf { it.isNotEmpty() },
+            connected = isConnected && socket != null,
+            connecting = connectionJob?.isActive == true,
+            reconnectPending = reconnectPending,
         )
+    }
+
+    private fun currentConnectionState(): String = when {
+        isConnected && socket != null -> "connected"
+        connectionJob?.isActive == true || reconnectPending -> "connecting"
+        else -> "disconnected"
+    }
+
+    private fun changeUIConnectionState(state: String) {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED) {
+            if (::mDevice.isInitialized) {
+                putExtra("address", mDevice.address)
+                putExtra("device_name", mDevice.name ?: cachedDeviceName)
+            }
+            putExtra("state", state)
+        }
+    }
+
+    private fun sendAppStatusBroadcast(action: String, fill: Intent.() -> Unit = {}) {
+        val ctx = mContext ?: return
+        if (!isAppUiActive()) return
+        Intent(action).apply {
+            fill()
+            this.`package` = BuildConfig.APPLICATION_ID
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            ctx.sendBroadcast(this)
+        }
+    }
+
+    private fun isAppUiActive(): Boolean {
+        if (!appUiActive) return false
+        if (SystemClock.elapsedRealtime() <= appUiActiveUntilMs) return true
+        appUiActive = false
+        appUiActiveUntilMs = 0L
+        Log.d(TAG, "app UI active timeout, stop app status broadcasts")
+        return false
+    }
+
+    private fun markAppUiActive() {
+        appUiActive = true
+        appUiActiveUntilMs = SystemClock.elapsedRealtime() + APP_UI_ACTIVE_TIMEOUT_MS
     }
 
 
@@ -358,15 +401,19 @@ object RfcommController {
         return method.invoke(device, channel) as BluetoothSocket
     }
 
-    fun connectPod(context: Context, device: BluetoothDevice, prefs: SharedPreferences) {
+    fun connectPod(context: Context, device: BluetoothDevice, prefs: SharedPreferences, appRequested: Boolean = false) {
         connectionJob?.cancel()
         reconnectJob?.cancel()
         readerJob?.cancel()
+        batteryPollJob?.cancel()
         closeSocketOnly()
         mContext = context
         mDevice = device
         mPrefs = prefs
         cachedDeviceName = device.name ?: ""
+        if (appRequested) {
+            markAppUiActive()
+        }
         // 初始化 Adaptive 模式状态缓存，从 SharedPreferences 读取当前值
         adaptiveModeEnabled = mPrefs.getBoolean("adaptive_mode", true)
         autoGameModeEnabled = mPrefs.getBoolean("auto_game_mode", false)
@@ -383,6 +430,7 @@ object RfcommController {
             context.registerReceiver(broadcastReceiver, IntentFilter().apply {
                 this.addAction(OppoPodsAction.ACTION_ANC_SELECT)
                 this.addAction(OppoPodsAction.ACTION_PODS_UI_INIT)
+                this.addAction(OppoPodsAction.ACTION_PODS_UI_CLOSED)
                 this.addAction(OppoPodsAction.ACTION_REFRESH_STATUS)
                 this.addAction(OppoPodsAction.ACTION_GAME_MODE_SET)
                 this.addAction(OppoPodsAction.ACTION_AUTO_GAME_MODE_CHANGED)
@@ -394,12 +442,9 @@ object RfcommController {
             receiverRegistered = true
         }
 
-        Intent(OppoPodsAction.ACTION_PODS_CONNECTED).apply {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
             this.putExtra("address", mDevice.address)
             this.putExtra("device_name", cachedDeviceName)
-            this.`package` = BuildConfig.APPLICATION_ID
-            this.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            context.sendBroadcast(this)
         }
         sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
             putExtra("device_name", cachedDeviceName)
@@ -410,6 +455,7 @@ object RfcommController {
         startRoutesScan()
 
         isConnected = true
+        changeUIConnectionState("connecting")
 
         connectRfcomm(initialDelayMs = 500L)
 
@@ -470,8 +516,10 @@ object RfcommController {
                 reconnectAttempts.set(0)
                 reconnectPending = false
                 Log.d(TAG, "RFCOMM connected! channel=$rfcommChannel")
+                changeUIConnectionState("connected")
 
                 startPacketReader(newSocket.inputStream)
+                startBatteryPolling()
 
                 delay(300)
                 sendStatusQueryPackets(immediateReconnect = false)
@@ -481,7 +529,21 @@ object RfcommController {
                 }
             } catch (e: IOException) {
                 Log.e(TAG, "RFCOMM connect failed", e)
+                changeUIConnectionState("error")
                 scheduleReconnect("connect failed")
+            }
+        }
+    }
+
+    private fun startBatteryPolling() {
+        batteryPollJob?.cancel()
+        batteryPollJob = CoroutineScope(Dispatchers.IO).launch {
+            delay(2_000L)
+            while (isConnected) {
+                delay(BATTERY_POLL_INTERVAL_MS)
+                if (isConnected && socket != null) {
+                    sendStatusQueryPackets(immediateReconnect = false)
+                }
             }
         }
     }
@@ -523,7 +585,9 @@ object RfcommController {
 
     private fun closeSocketOnly() {
         readerJob?.cancel()
+        batteryPollJob?.cancel()
         readerJob = null
+        batteryPollJob = null
         try {
             socket?.close()
         } catch (_: IOException) {}
@@ -632,6 +696,7 @@ object RfcommController {
         connectionJob?.cancel()
         reconnectJob?.cancel()
         readerJob?.cancel()
+        batteryPollJob?.cancel()
         reconnectAttempts.set(0)
         reconnectPending = false
 
@@ -640,8 +705,8 @@ object RfcommController {
         mContext?.let {
             stopRoutesScan()
             cancelPodsNotificationByMiuiBt(context, device)
-            Intent(OppoPodsAction.ACTION_PODS_DISCONNECTED).apply {
-                context.sendBroadcast(this)
+            sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_DISCONNECTED) {
+                putExtra("address", device.address)
             }
             if (receiverRegistered) {
                 it.unregisterReceiver(broadcastReceiver)
@@ -650,8 +715,13 @@ object RfcommController {
         }
 
         mShowedConnectedToast = false
+        currentWearStatus = WearStatus()
+        currentAnc = 1
+        currentGameMode = false
+        currentTransparencyVocalEnhancement = false
         lastKnownCaseBattery = 0
         lastKnownCaseCharging = false
+        changeUIConnectionState("disconnected")
         cachedDeviceName = ""
         mContext = null
         MediaControl.mContext = null
@@ -737,7 +807,7 @@ object RfcommController {
 
     fun setANCMode(mode: Int) {
         Log.d(TAG, "setANCMode: $mode")
-        currentAnc = mode  // 乐观更新，与 AppRfcommController 保持一致
+        currentAnc = mode
         val packet = when (mode) {
             1 -> Enums.ANC_OFF
             2 -> Enums.ANC_NOISE_CANCEL
