@@ -266,6 +266,7 @@ object MiBluetoothToastHook : HookContext() {
                                         ConfigManager.CAPABILITY_OVERRIDE_AUTO
                                     ),
                                     spatialAudioOverride = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
+                                    spatialSoundSwitchOverride = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
                                 )
                                 val cycle = if (capabilities.adaptiveSupported) {
                                     listOf(2, 4, 3, 1)

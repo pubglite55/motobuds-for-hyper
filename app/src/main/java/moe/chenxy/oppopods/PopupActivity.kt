@@ -173,6 +173,7 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
         deviceName = deviceName.value,
         adaptiveOverride = appConfig.adaptiveCapabilityOverride,
         spatialAudioOverride = appConfig.spatialAudioCapabilityOverride,
+        spatialSoundSwitchOverride = appConfig.spatialSoundSwitchCapabilityOverride,
     )
 
     val broadcastReceiver = remember {

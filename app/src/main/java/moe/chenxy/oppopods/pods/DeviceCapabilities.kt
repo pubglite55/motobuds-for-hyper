@@ -10,15 +10,22 @@ private val SPATIAL_AUDIO_SUPPORTED_DEVICES = arrayOf(
     "OPPO Enco X3",
 )
 
+private val SPATIAL_SOUND_SWITCH_SUPPORTED_DEVICES = arrayOf(
+    "OPPO Enco Free4",
+    "OPPO Enco Air5",
+)
+
 data class DeviceCapabilities(
     val adaptiveSupported: Boolean,
     val spatialAudioSupported: Boolean,
+    val spatialSoundSwitchSupported: Boolean,
 )
 
 fun detectDeviceCapabilities(
     deviceName: String,
     adaptiveOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     spatialAudioOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
+    spatialSoundSwitchOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
 ): DeviceCapabilities {
     return DeviceCapabilities(
         adaptiveSupported = resolveCapability(
@@ -29,6 +36,10 @@ fun detectDeviceCapabilities(
             override = spatialAudioOverride,
             autoDetected = isSpatialAudioSupportedByName(deviceName),
         ),
+        spatialSoundSwitchSupported = resolveCapability(
+            override = spatialSoundSwitchOverride,
+            autoDetected = isSpatialSoundSwitchSupportedByName(deviceName),
+        ),
     )
 }
 
@@ -38,6 +49,10 @@ fun isAdaptiveSupportedByName(deviceName: String): Boolean {
 
 fun isSpatialAudioSupportedByName(deviceName: String): Boolean {
     return isDeviceInCapabilityList(deviceName, SPATIAL_AUDIO_SUPPORTED_DEVICES)
+}
+
+fun isSpatialSoundSwitchSupportedByName(deviceName: String): Boolean {
+    return isDeviceInCapabilityList(deviceName, SPATIAL_SOUND_SWITCH_SUPPORTED_DEVICES)
 }
 
 private fun resolveCapability(override: Int, autoDetected: Boolean): Boolean {

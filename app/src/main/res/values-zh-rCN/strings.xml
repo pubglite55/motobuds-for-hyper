@@ -14,6 +14,8 @@
     <string name="disable_game_mode">关闭游戏模式</string>
     <string name="auto_game_mode">连接时自动开启游戏模式</string>
     <string name="spatial_audio">空间音频</string>
+    <string name="spatial_sound">空间音效</string>
+    <string name="dual_device_connection">双设备连接</string>
     <string name="spatial_audio_summary">选择空间音频模式</string>
     <string name="spatial_audio_fixed">固定</string>
     <string name="spatial_audio_head_tracking">头部跟踪</string>
@@ -28,6 +30,7 @@
     <string name="click_action_system_settings">系统设置</string>
     <string name="click_action_heytap">欢律</string>
     <string name="click_action_module">模块</string>
+    <string name="enabled">开启</string>
     <string name="off">关闭</string>
     <string name="noise_cancellation_title">降噪</string>
     <string name="noise_cancellation_smart">智能</string>

@@ -23,6 +23,8 @@ fun DeviceCapabilitiesPage(
     onAdaptiveCapabilityOverrideChange: (Int) -> Unit = {},
     spatialAudioCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     onSpatialAudioCapabilityOverrideChange: (Int) -> Unit = {},
+    spatialSoundSwitchCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
+    onSpatialSoundSwitchCapabilityOverrideChange: (Int) -> Unit = {},
 ) {
     val overrideValues = listOf(
         ConfigManager.CAPABILITY_OVERRIDE_AUTO,
@@ -59,6 +61,13 @@ fun DeviceCapabilitiesPage(
                     items = overrideOptions,
                     selectedIndex = overrideValues.indexOf(spatialAudioCapabilityOverride.value).coerceAtLeast(0),
                     onSelectedIndexChange = { onSpatialAudioCapabilityOverrideChange(overrideValues[it]) },
+                )
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.spatial_sound),
+                    summary = stringResource(R.string.capability_override_summary),
+                    items = overrideOptions,
+                    selectedIndex = overrideValues.indexOf(spatialSoundSwitchCapabilityOverride.value).coerceAtLeast(0),
+                    onSelectedIndexChange = { onSpatialSoundSwitchCapabilityOverrideChange(overrideValues[it]) },
                 )
             }
         }

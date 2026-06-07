@@ -48,6 +48,7 @@ fun SettingsPage(
     onMoreClickActionChange: (Int) -> Unit = {},
     adaptiveCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     spatialAudioCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
+    spatialSoundSwitchCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     onOpenDeviceCapabilities: () -> Unit = {},
     fakeDeviceId: MutableState<String> = mutableStateOf(ConfigManager.DEFAULT_FAKE_DEVICE_ID),
     onFakeDeviceIdChange: (String) -> Unit = {},
@@ -121,9 +122,11 @@ fun SettingsPage(
     )
     val adaptiveCapabilityText = capabilityOverrideLabel(adaptiveCapabilityOverride.value)
     val spatialAudioCapabilityText = capabilityOverrideLabel(spatialAudioCapabilityOverride.value)
+    val spatialSoundCapabilityText = capabilityOverrideLabel(spatialSoundSwitchCapabilityOverride.value)
     val deviceCapabilitySummary = listOf(
         stringResource(R.string.adaptive_mode) to adaptiveCapabilityText,
         stringResource(R.string.spatial_audio) to spatialAudioCapabilityText,
+        stringResource(R.string.spatial_sound) to spatialSoundCapabilityText,
     ).joinToString(" / ") { (label, value) ->
         "$label: $value"
     }

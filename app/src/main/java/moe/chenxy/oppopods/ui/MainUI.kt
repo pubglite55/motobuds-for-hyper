@@ -131,6 +131,7 @@ fun MainUI(
     val hookConnected = remember { mutableStateOf(false) }
     val gameMode = remember { mutableStateOf(false) }
     val transparencyVocalEnhancement = remember { mutableStateOf(false) }
+    val dualDeviceConnection = remember { mutableStateOf(false) }
     val tabs = remember { MainTab.entries.toList() }
     var selectedTab by remember { mutableStateOf(MainTab.Module) }
     var hasAppliedDefaultTab by remember { mutableStateOf(false) }
@@ -179,6 +180,7 @@ fun MainUI(
     val spatialAudioMode = remember { mutableStateOf(prefs.getInt("spatial_audio_mode", ConfigManager.SPATIAL_AUDIO_OFF)) }
     val adaptiveCapabilityOverride = remember { mutableStateOf(appConfig.adaptiveCapabilityOverride) }
     val spatialAudioCapabilityOverride = remember { mutableStateOf(appConfig.spatialAudioCapabilityOverride) }
+    val spatialSoundSwitchCapabilityOverride = remember { mutableStateOf(appConfig.spatialSoundSwitchCapabilityOverride) }
 
     val canShowDetailPage = hookConnected.value
     val showEarphoneDetail = canShowDetailPage && !showDevicePicker
@@ -188,17 +190,19 @@ fun MainUI(
     val displayAnc = ancMode.value
     val displayGameMode = gameMode.value
     val displayTransparencyVocalEnhancement = transparencyVocalEnhancement.value
+    val displayDualDeviceConnection = dualDeviceConnection.value
     val displayTitle = mainTitle.value.takeIf { it.isNotBlank() && hookConnected.value } ?: mainTitle.value
     val displayCapabilities = detectDeviceCapabilities(
         deviceName = displayTitle,
         adaptiveOverride = adaptiveCapabilityOverride.value,
         spatialAudioOverride = spatialAudioCapabilityOverride.value,
+        spatialSoundSwitchOverride = spatialSoundSwitchCapabilityOverride.value,
     )
 
     LaunchedEffect(displayTitle, displayCapabilities) {
         Log.i(
             "OppoPods",
-            "capability check: deviceName='$displayTitle', adaptive=${displayCapabilities.adaptiveSupported}, spatial=${displayCapabilities.spatialAudioSupported}"
+            "capability check: deviceName='$displayTitle', adaptive=${displayCapabilities.adaptiveSupported}, spatial=${displayCapabilities.spatialAudioSupported}, spatialSoundSwitch=${displayCapabilities.spatialSoundSwitchSupported}"
         )
     }
 
@@ -278,6 +282,10 @@ fun MainUI(
                         spatialAudioMode.value = p1.getIntExtra("mode", ConfigManager.SPATIAL_AUDIO_OFF)
                     }
 
+                    OppoPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED -> {
+                        dualDeviceConnection.value = p1.getBooleanExtra("enabled", false)
+                    }
+
                     OppoPodsAction.ACTION_PODS_CONNECTED -> {
                         val deviceName = p1.getStringExtra("device_name")
                         val shouldOpenEarphones = connectingDeviceAddress != null || !hasAppliedDefaultTab
@@ -339,6 +347,7 @@ fun MainUI(
             addAction(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DISCONNECTED)
@@ -459,6 +468,16 @@ fun MainUI(
         prefs.edit().putInt("spatial_audio_mode", normalizedMode).apply()
         Intent(OppoPodsAction.ACTION_SPATIAL_AUDIO_SET).apply {
             this.putExtra("mode", normalizedMode)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun setDualDeviceConnection(enabled: Boolean) {
+        dualDeviceConnection.value = enabled
+        Intent(OppoPodsAction.ACTION_DUAL_DEVICE_CONNECTION_SET).apply {
+            this.putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
@@ -661,7 +680,10 @@ fun MainUI(
                                         onGameModeChange = { setGameMode(it) },
                                         spatialAudioMode = spatialAudioMode.value,
                                         onSpatialAudioModeChange = { setSpatialAudioMode(it) },
+                                        dualDeviceConnection = displayDualDeviceConnection,
+                                        onDualDeviceConnectionChange = { setDualDeviceConnection(it) },
                                         spatialAudioSupported = displayCapabilities.spatialAudioSupported,
+                                        spatialSoundSupported = displayCapabilities.spatialSoundSwitchSupported,
                                         adaptiveModeEnabled = displayCapabilities.adaptiveSupported
                                     )
 
@@ -759,6 +781,7 @@ fun MainUI(
                                 },
                                 adaptiveCapabilityOverride = adaptiveCapabilityOverride,
                                 spatialAudioCapabilityOverride = spatialAudioCapabilityOverride,
+                                spatialSoundSwitchCapabilityOverride = spatialSoundSwitchCapabilityOverride,
                                 onOpenDeviceCapabilities = { backStack.add(Screen.DeviceCapabilities) },
                                 fakeDeviceId = fakeDeviceId,
                                 onFakeDeviceIdChange = {
@@ -914,7 +937,12 @@ fun MainUI(
                             adaptiveCapabilityOverride.value = it
                             ConfigManager.updateAdaptiveCapabilityOverride(prefs, xposedService, it)
                             broadcastConfigChanged(context, "com.android.bluetooth")
-                            if (!detectDeviceCapabilities(displayTitle, it, spatialAudioCapabilityOverride.value).adaptiveSupported &&
+                            if (!detectDeviceCapabilities(
+                                    deviceName = displayTitle,
+                                    adaptiveOverride = it,
+                                    spatialAudioOverride = spatialAudioCapabilityOverride.value,
+                                    spatialSoundSwitchOverride = spatialSoundSwitchCapabilityOverride.value,
+                                ).adaptiveSupported &&
                                 displayAnc == NoiseControlMode.ADAPTIVE
                             ) {
                                 setAncMode(NoiseControlMode.NOISE_CANCELLATION)
@@ -924,6 +952,12 @@ fun MainUI(
                         onSpatialAudioCapabilityOverrideChange = {
                             spatialAudioCapabilityOverride.value = it
                             ConfigManager.updateSpatialAudioCapabilityOverride(prefs, xposedService, it)
+                            broadcastConfigChanged(context, "com.android.bluetooth")
+                        },
+                        spatialSoundSwitchCapabilityOverride = spatialSoundSwitchCapabilityOverride,
+                        onSpatialSoundSwitchCapabilityOverrideChange = {
+                            spatialSoundSwitchCapabilityOverride.value = it
+                            ConfigManager.updateSpatialSoundSwitchCapabilityOverride(prefs, xposedService, it)
                             broadcastConfigChanged(context, "com.android.bluetooth")
                         },
                     )

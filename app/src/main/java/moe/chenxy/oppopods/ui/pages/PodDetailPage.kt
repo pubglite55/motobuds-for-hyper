@@ -52,7 +52,10 @@ fun PodDetailPage(
     onGameModeChange: (Boolean) -> Unit = {},
     spatialAudioMode: Int = ConfigManager.SPATIAL_AUDIO_OFF,
     onSpatialAudioModeChange: (Int) -> Unit = {},
+    dualDeviceConnection: Boolean = false,
+    onDualDeviceConnectionChange: (Boolean) -> Unit = {},
     spatialAudioSupported: Boolean = false,
+    spatialSoundSupported: Boolean = false,
     adaptiveModeEnabled: Boolean = true
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -106,7 +109,10 @@ fun PodDetailPage(
                     onGameModeChange = onGameModeChange,
                     spatialAudioMode = spatialAudioMode,
                     onSpatialAudioModeChange = onSpatialAudioModeChange,
+                    dualDeviceConnection = dualDeviceConnection,
+                    onDualDeviceConnectionChange = onDualDeviceConnectionChange,
                     spatialAudioSupported = spatialAudioSupported,
+                    spatialSoundSupported = spatialSoundSupported,
                     adaptiveModeEnabled = adaptiveModeEnabled,
                     bottomContentPadding = bottomContentPadding
                 )
@@ -142,7 +148,10 @@ fun PodDetailPage(
             onGameModeChange = onGameModeChange,
             spatialAudioMode = spatialAudioMode,
             onSpatialAudioModeChange = onSpatialAudioModeChange,
+            dualDeviceConnection = dualDeviceConnection,
+            onDualDeviceConnectionChange = onDualDeviceConnectionChange,
             spatialAudioSupported = spatialAudioSupported,
+            spatialSoundSupported = spatialSoundSupported,
             adaptiveModeEnabled = adaptiveModeEnabled,
             bottomContentPadding = bottomContentPadding
         )
@@ -160,7 +169,10 @@ private fun LazyListScope.podControlItems(
     onGameModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
+    dualDeviceConnection: Boolean,
+    onDualDeviceConnectionChange: (Boolean) -> Unit,
     spatialAudioSupported: Boolean,
+    spatialSoundSupported: Boolean,
     adaptiveModeEnabled: Boolean,
     bottomContentPadding: Dp
 ) {
@@ -220,6 +232,22 @@ private fun LazyListScope.podControlItems(
                     onSelectedIndexChange = { onSpatialAudioModeChange(spatialAudioValues[it]) }
                 )
             }
+            if (spatialSoundSupported) {
+                SwitchPreference(
+                    title = stringResource(R.string.spatial_sound),
+                    summary = stringResource(if (spatialAudioMode != ConfigManager.SPATIAL_AUDIO_OFF) R.string.enabled else R.string.off),
+                    checked = spatialAudioMode != ConfigManager.SPATIAL_AUDIO_OFF,
+                    onCheckedChange = {
+                        onSpatialAudioModeChange(if (it) ConfigManager.SPATIAL_AUDIO_FIXED else ConfigManager.SPATIAL_AUDIO_OFF)
+                    }
+                )
+            }
+            SwitchPreference(
+                title = stringResource(R.string.dual_device_connection),
+                summary = stringResource(if (dualDeviceConnection) R.string.enabled else R.string.off),
+                checked = dualDeviceConnection,
+                onCheckedChange = onDualDeviceConnectionChange
+            )
         }
     }
     item {

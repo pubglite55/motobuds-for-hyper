@@ -103,6 +103,8 @@ data class WearStatus(
 /** Feature IDs used by the switch-feature command/query. */
 object GameModeFeature {
     const val LOW_LATENCY = 0x06
+    const val DUAL_DEVICE_CONNECTION = 0x11
+    const val FREE4_SPATIAL_SOUND = 0x1B
     const val MAIN = 0x28
 }
 
@@ -139,6 +141,8 @@ object Cmd {
     const val SET_GAME_MODE_RESPONSE = 0x8403
     /** Spatial audio mode response */
     const val SET_SPATIAL_AUDIO_RESPONSE = 0x8422
+    /** Set spatial sound switch response */
+    const val SET_SPATIAL_SOUND_SWITCH_RESPONSE = 0x8403
     /** Spatial audio mode notification */
     const val SPATIAL_AUDIO_NOTIFY = 0x0510
 }
@@ -249,6 +253,18 @@ object Enums {
     fun spatialAudioPacket(mode: Int): ByteArray = OppoPackets.buildPacket(
         cmd = Cmd.SET_SPATIAL_AUDIO,
         payload = byteArrayOf(mode.coerceIn(SpatialAudioMode.OFF, SpatialAudioMode.HEAD_TRACKING).toByte())
+    )
+
+    /** Set spatial sound switch: AA 09 00 00 03 04 F0 02 00 1B [00/01]. */
+    fun spatialSoundSwitchPacket(enabled: Boolean): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE,
+        payload = byteArrayOf(GameModeFeature.FREE4_SPATIAL_SOUND.toByte(), if (enabled) 0x01 else 0x00)
+    )
+
+    /** Set dual-device connection: AA 09 00 00 03 04 F0 02 00 11 [00/01]. */
+    fun dualDeviceConnectionPacket(enabled: Boolean): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE,
+        payload = byteArrayOf(GameModeFeature.DUAL_DEVICE_CONNECTION.toByte(), if (enabled) 0x01 else 0x00)
     )
 
     /**
@@ -400,6 +416,21 @@ object SpatialAudioParser {
         val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
         if (payLen < 1 || packet.size < 9 + payLen) return null
         return packet[9].toInt() and 0xFF
+    }
+
+    fun parseSpatialSoundSwitchSetResponse(packet: ByteArray): Boolean? {
+        if (packet.size < 11 || packet[0] != 0xAA.toByte()) return null
+        val cmd = (packet[4].toInt() and 0xFF) or ((packet[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.SET_SPATIAL_SOUND_SWITCH_RESPONSE) return null
+        val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
+        if (payLen < 2 || packet.size < 9 + payLen) return null
+        val feature = packet[9].toInt() and 0xFF
+        if (feature != GameModeFeature.FREE4_SPATIAL_SOUND) return null
+        return when (packet[10].toInt() and 0xFF) {
+            0x00 -> false
+            0x01 -> true
+            else -> null
+        }
     }
 }
 
@@ -625,7 +656,13 @@ object GameModeParser {
 object SwitchFeatureSetParser {
     data class Result(
         val status: Int,
-        val value: Int?
+        val value: Int?,
+        val featureId: Int? = null
+    )
+
+    private data class FeatureValue(
+        val featureId: Int,
+        val value: Int
     )
 
     fun parse(data: ByteArray): Result? {
@@ -642,7 +679,20 @@ object SwitchFeatureSetParser {
         if (payLen <= 0 || data.size < payloadStart + payLen) return null
 
         val status = data[payloadStart].toInt() and 0xFF
-        val value = if (payLen > 1) data[payloadStart + 1].toInt() and 0xFF else null
-        return Result(status, value)
+        val featureValue = findSwitchFeatureValue(data, payloadStart, payLen)
+        val value = featureValue?.value ?: if (payLen > 1) data[payloadStart + 1].toInt() and 0xFF else null
+        return Result(status, value, featureValue?.featureId)
+    }
+
+    private fun findSwitchFeatureValue(data: ByteArray, payloadStart: Int, payLen: Int): FeatureValue? {
+        val payloadEnd = minOf(payloadStart + payLen, data.size)
+        for (i in payloadStart until payloadEnd - 1) {
+            val featureId = data[i].toInt() and 0xFF
+            val value = data[i + 1].toInt() and 0xFF
+            if (featureId == GameModeFeature.DUAL_DEVICE_CONNECTION && (value == 0x00 || value == 0x01)) {
+                return FeatureValue(featureId, value)
+            }
+        }
+        return null
     }
 }

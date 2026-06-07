@@ -13,6 +13,8 @@
     <string name="disable_game_mode">Disable Game Mode</string>
     <string name="auto_game_mode">Auto-enable game mode on connect</string>
     <string name="spatial_audio">Spatial Audio</string>
+    <string name="spatial_sound">Spatial Sound</string>
+    <string name="dual_device_connection">Dual-device connection</string>
     <string name="spatial_audio_summary">Choose the spatial audio mode</string>
     <string name="spatial_audio_fixed">Fixed</string>
     <string name="spatial_audio_head_tracking">Head Tracking</string>
@@ -27,6 +29,7 @@
     <string name="click_action_system_settings">System Settings</string>
     <string name="click_action_heytap">HeyTap Headset</string>
     <string name="click_action_module">Module</string>
+    <string name="enabled">On</string>
     <string name="off">Off</string>
     <string name="noise_cancellation_title">NC</string>
     <string name="noise_cancellation_smart">Smart</string>

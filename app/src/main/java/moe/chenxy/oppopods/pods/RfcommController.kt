@@ -61,6 +61,7 @@ object RfcommController {
     private var currentGameMode: Boolean = false
     private var currentTransparencyVocalEnhancement: Boolean = false
     private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
+    private var currentDualDeviceConnection: Boolean = false
     private var autoGameModeEnabled: Boolean = false
     private var gameModeImplementation: GameModeImplementation = GameModeImplementation.STANDARD
     private var rfcommChannel: Int = ConfigManager.DEFAULT_RFCOMM_CHANNEL
@@ -154,6 +155,12 @@ object RfcommController {
         }
     }
 
+    private fun changeUIDualDeviceConnectionStatus(enabled: Boolean) {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED) {
+            this.putExtra("enabled", enabled)
+        }
+    }
+
     fun handleUIEvent(intent: Intent) {
         when (intent.action) {
             OppoPodsAction.ACTION_PODS_UI_INIT -> {
@@ -167,6 +174,7 @@ object RfcommController {
                 changeUIGameModeStatus(currentGameMode)
                 changeUITransparencyVocalEnhancementStatus(currentTransparencyVocalEnhancement)
                 changeUISpatialAudioStatus(currentSpatialAudioMode)
+                changeUIDualDeviceConnectionStatus(currentDualDeviceConnection)
                 if (::mDevice.isInitialized && isConnected) {
                     sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
                         this.putExtra("address", mDevice.address)
@@ -210,6 +218,10 @@ object RfcommController {
             OppoPodsAction.ACTION_SPATIAL_AUDIO_SET -> {
                 val mode = intent.getIntExtra("mode", SpatialAudioMode.OFF)
                 setSpatialAudioMode(mode)
+            }
+            OppoPodsAction.ACTION_DUAL_DEVICE_CONNECTION_SET -> {
+                val enabled = intent.getBooleanExtra("enabled", false)
+                setDualDeviceConnection(enabled)
             }
             OppoPodsAction.ACTION_CYCLE_ANC -> {
                 cycleAnc()
@@ -445,6 +457,7 @@ object RfcommController {
                 this.addAction(OppoPodsAction.ACTION_GAME_MODE_IMPLEMENTATION_CHANGED)
                 this.addAction(OppoPodsAction.ACTION_TRANSPARENCY_VOCAL_ENHANCEMENT_SET)
                 this.addAction(OppoPodsAction.ACTION_SPATIAL_AUDIO_SET)
+                this.addAction(OppoPodsAction.ACTION_DUAL_DEVICE_CONNECTION_SET)
                 this.addAction(OppoPodsAction.ACTION_CYCLE_ANC)
                 this.addAction(OppoPodsAction.ACTION_CONFIG_CHANGED)
             }, Context.RECEIVER_EXPORTED)
@@ -705,6 +718,14 @@ object RfcommController {
             return
         }
 
+        val spatialSoundSwitchEnabled = SpatialAudioParser.parseSpatialSoundSwitchSetResponse(packet)
+        if (spatialSoundSwitchEnabled != null) {
+            Log.i(TAG, "Spatial sound switch response: packet=${packet.toHexString(HexFormat.UpperCase)}, enabled=$spatialSoundSwitchEnabled")
+            currentSpatialAudioMode = if (spatialSoundSwitchEnabled) SpatialAudioMode.FIXED else SpatialAudioMode.OFF
+            changeUISpatialAudioStatus(currentSpatialAudioMode)
+            return
+        }
+
         // Try parse as ANC mode response
         val ancResult = AncModeParser.parse(packet)
         if (ancResult != null) {
@@ -736,6 +757,10 @@ object RfcommController {
         val setFeatureResult = SwitchFeatureSetParser.parse(packet)
         if (setFeatureResult != null) {
             Log.d(TAG, "Switch feature response: status=${setFeatureResult.status}, value=${setFeatureResult.value}")
+            if (setFeatureResult.featureId == GameModeFeature.DUAL_DEVICE_CONNECTION && setFeatureResult.value != null) {
+                currentDualDeviceConnection = setFeatureResult.value == 0x01
+                changeUIDualDeviceConnectionStatus(currentDualDeviceConnection)
+            }
             return
         }
 
@@ -772,6 +797,7 @@ object RfcommController {
         currentGameMode = false
         currentTransparencyVocalEnhancement = false
         currentSpatialAudioMode = SpatialAudioMode.OFF
+        currentDualDeviceConnection = false
         lastKnownCaseBattery = 0
         lastKnownCaseCharging = false
         changeUIConnectionState("disconnected")
@@ -851,12 +877,26 @@ object RfcommController {
 
     fun setSpatialAudioMode(mode: Int) {
         val normalizedMode = mode.coerceIn(SpatialAudioMode.OFF, SpatialAudioMode.HEAD_TRACKING)
-        val packet = Enums.spatialAudioPacket(normalizedMode)
+        val packet = if (currentCapabilities().spatialSoundSwitchSupported) {
+            Enums.spatialSoundSwitchPacket(normalizedMode != SpatialAudioMode.OFF)
+        } else {
+            Enums.spatialAudioPacket(normalizedMode)
+        }
         Log.i(TAG, "setSpatialAudioMode: $normalizedMode, packet=${packet.toHexString(HexFormat.UpperCase)}")
         currentSpatialAudioMode = normalizedMode
         changeUISpatialAudioStatus(normalizedMode)
         CoroutineScope(Dispatchers.IO).launch {
             sendPacketSafe(packet, "spatial audio control")
+        }
+    }
+
+    fun setDualDeviceConnection(enabled: Boolean) {
+        val packet = Enums.dualDeviceConnectionPacket(enabled)
+        Log.i(TAG, "setDualDeviceConnection: $enabled, packet=${packet.toHexString(HexFormat.UpperCase)}")
+        currentDualDeviceConnection = enabled
+        changeUIDualDeviceConnectionStatus(enabled)
+        CoroutineScope(Dispatchers.IO).launch {
+            sendPacketSafe(packet, "dual-device connection control")
         }
     }
 
@@ -876,6 +916,7 @@ object RfcommController {
             deviceName = if (::mDevice.isInitialized) mDevice.name ?: cachedDeviceName else cachedDeviceName,
             adaptiveOverride = ConfigManager.adaptiveCapabilityOverride(),
             spatialAudioOverride = ConfigManager.spatialAudioCapabilityOverride(),
+            spatialSoundSwitchOverride = ConfigManager.spatialSoundSwitchCapabilityOverride(),
         )
     }
 
