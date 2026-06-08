@@ -20,6 +20,14 @@ object HeadsetStateDispatcher : HookContext() {
 
     override fun onHook() {
         runCatching {
+            hookAfter(findMethod("com.android.bluetooth.btservice.AdapterService", "onCreate")) {
+                registerAppRequestReceiver(instance as? Context)
+            }
+        }.onFailure {
+            Log.w("OppoPods", "AdapterService.onCreate hook skipped", it)
+        }
+
+        runCatching {
             hookAfter(findMethod("com.android.bluetooth.a2dp.A2dpService", "onCreate")) {
                 registerAppRequestReceiver(instance as? Context)
             }
