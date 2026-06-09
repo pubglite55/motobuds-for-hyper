@@ -57,6 +57,7 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -156,6 +157,12 @@ fun DevicePickerPage(
                         color = MiuixTheme.colorScheme.onBackground,
                         modifier = Modifier.weight(1f)
                     )
+                    IconButton(onClick = { showMacDialog.value = true }) {
+                        Icon(
+                            imageVector = MiuixIcons.Add,
+                            contentDescription = stringResource(R.string.input_mac_manually),
+                        )
+                    }
                 }
             }
             if (pairedDevices.isEmpty()) {
@@ -196,15 +203,6 @@ fun DevicePickerPage(
             }
         }
 
-        TextButton(
-            text = stringResource(R.string.input_mac_manually),
-            onClick = { showMacDialog.value = true },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(0.7f)
-                .padding(bottom = bottomContentPadding),
-            colors = ButtonDefaults.textButtonColorsPrimary(),
-        )
     }
 
     OverlayDialog(
