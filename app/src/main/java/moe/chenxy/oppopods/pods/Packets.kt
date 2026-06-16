@@ -46,6 +46,14 @@ object AncMode {
     const val ADAPTIVE_LOW = 0x08
 }
 
+/** ANC protocol implementation variant. */
+enum class AncImplementation {
+    /** Standard: 0x01=Off, 0x02=NC. */
+    STANDARD,
+    /** Compatible: 0x01=NC, 0x02=Off. Used by some older devices. */
+    COMPATIBLE;
+}
+
 /** Noise control mode enum for UI. */
 enum class NoiseControlMode {
     OFF,
@@ -555,7 +563,7 @@ object WearStatusParser {
  */
 object AncModeParser {
 
-    fun parse(data: ByteArray): NoiseControlMode? {
+    fun parse(data: ByteArray, implementation: AncImplementation = AncImplementation.STANDARD): NoiseControlMode? {
         if (data.size < 9) return null
         if (data[0] != 0xAA.toByte()) return null
 
@@ -585,14 +593,20 @@ object AncModeParser {
 
                 return when {
                     val1 == 0x08 && val2 == 0x00 -> NoiseControlMode.OFF
-                    val1 == 0x02 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION
+                    val1 == 0x02 && val2 == 0x00 -> {
+                        if (implementation == AncImplementation.COMPATIBLE) NoiseControlMode.OFF
+                        else NoiseControlMode.NOISE_CANCELLATION
+                    }
                     val1 == 0x80 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_SMART
                     val1 == 0x40 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
                     val1 == 0x20 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
                     val1 == 0x10 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
                     val1 == 0x00 && val2 == 0x01 -> NoiseControlMode.TRANSPARENCY
                     val1 == 0x00 && val2 == 0x02 -> NoiseControlMode.TRANSPARENCY
-                    val1 == 0x01 && val2 == 0x00 -> NoiseControlMode.OFF
+                    val1 == 0x01 && val2 == 0x00 -> {
+                        if (implementation == AncImplementation.COMPATIBLE) NoiseControlMode.NOISE_CANCELLATION
+                        else NoiseControlMode.OFF
+                    }
                     val1 == 0x04 && val2 == 0x00 -> NoiseControlMode.TRANSPARENCY
                     val1 == 0x00 && val2 == 0x08 -> NoiseControlMode.ADAPTIVE
                     else -> null

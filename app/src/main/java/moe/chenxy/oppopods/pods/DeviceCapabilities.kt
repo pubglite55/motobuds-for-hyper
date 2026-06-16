@@ -15,10 +15,15 @@ private val SPATIAL_SOUND_SWITCH_SUPPORTED_DEVICES = arrayOf(
     "OPPO Enco Air5",
 )
 
+private val LEGACY_ANC_DEVICES = arrayOf(
+    "OPPO Enco Air2 Pro",
+)
+
 data class DeviceCapabilities(
     val adaptiveSupported: Boolean,
     val spatialAudioSupported: Boolean,
     val spatialSoundSwitchSupported: Boolean,
+    val ancImplementation: AncImplementation,
 )
 
 fun detectDeviceCapabilities(
@@ -26,6 +31,7 @@ fun detectDeviceCapabilities(
     adaptiveOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     spatialAudioOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     spatialSoundSwitchOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
+    ancImplementationOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
 ): DeviceCapabilities {
     return DeviceCapabilities(
         adaptiveSupported = resolveCapability(
@@ -40,6 +46,10 @@ fun detectDeviceCapabilities(
             override = spatialSoundSwitchOverride,
             autoDetected = isSpatialSoundSwitchSupportedByName(deviceName),
         ),
+        ancImplementation = resolveAncImplementation(
+            override = ancImplementationOverride,
+            autoDetected = isLegacyAncDeviceByName(deviceName)
+        )
     )
 }
 
@@ -55,11 +65,23 @@ fun isSpatialSoundSwitchSupportedByName(deviceName: String): Boolean {
     return isDeviceInCapabilityList(deviceName, SPATIAL_SOUND_SWITCH_SUPPORTED_DEVICES)
 }
 
+fun isLegacyAncDeviceByName(deviceName: String): Boolean {
+    return isDeviceInCapabilityList(deviceName, LEGACY_ANC_DEVICES)
+}
+
 private fun resolveCapability(override: Int, autoDetected: Boolean): Boolean {
     return when (override) {
         ConfigManager.CAPABILITY_OVERRIDE_FORCE_ENABLED -> true
         ConfigManager.CAPABILITY_OVERRIDE_FORCE_DISABLED -> false
         else -> autoDetected
+    }
+}
+
+private fun resolveAncImplementation(override: Int, autoDetected: Boolean): AncImplementation {
+    return when (override) {
+        ConfigManager.CAPABILITY_OVERRIDE_FORCE_ENABLED -> AncImplementation.COMPATIBLE
+        ConfigManager.CAPABILITY_OVERRIDE_FORCE_DISABLED -> AncImplementation.STANDARD
+        else -> if (autoDetected) AncImplementation.COMPATIBLE else AncImplementation.STANDARD
     }
 }
 

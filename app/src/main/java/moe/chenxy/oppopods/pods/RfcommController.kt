@@ -768,7 +768,7 @@ object RfcommController {
         }
 
         // Try parse as ANC mode response
-        val ancResult = AncModeParser.parse(packet)
+        val ancResult = AncModeParser.parse(packet, currentCapabilities().ancImplementation)
         if (ancResult != null) {
             Log.d(TAG, "ANC mode received: $ancResult")
             currentAnc = when (ancResult) {
@@ -1012,6 +1012,7 @@ object RfcommController {
             adaptiveOverride = ConfigManager.adaptiveCapabilityOverride(),
             spatialAudioOverride = ConfigManager.spatialAudioCapabilityOverride(),
             spatialSoundSwitchOverride = ConfigManager.spatialSoundSwitchCapabilityOverride(),
+            ancImplementationOverride = ConfigManager.ancImplementationCapabilityOverride(),
         )
     }
 
@@ -1020,7 +1021,7 @@ object RfcommController {
     fun setANCMode(mode: Int) {
         Log.d(TAG, "setANCMode: $mode")
         currentAnc = mode
-        val packet = when (mode) {
+        var packet = when (mode) {
             1 -> Enums.ANC_OFF
             2 -> Enums.ANC_NOISE_CANCEL
             3 -> Enums.ANC_TRANSPARENCY
@@ -1030,6 +1031,13 @@ object RfcommController {
             7 -> Enums.ANC_NOISE_CANCEL_MEDIUM
             8 -> Enums.ANC_NOISE_CANCEL_DEEP
             else -> return
+        }
+        if (currentCapabilities().ancImplementation == AncImplementation.COMPATIBLE) {
+            packet = when (mode) {
+                1 -> Enums.ANC_NOISE_CANCEL
+                2 -> Enums.ANC_OFF
+                else -> packet
+            }
         }
         changeUIAncStatus(mode)
         CoroutineScope(Dispatchers.IO).launch {

@@ -25,16 +25,18 @@ fun DeviceCapabilitiesPage(
     onSpatialAudioCapabilityOverrideChange: (Int) -> Unit = {},
     spatialSoundSwitchCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     onSpatialSoundSwitchCapabilityOverrideChange: (Int) -> Unit = {},
+    ancImplementationCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
+    onAncImplementationCapabilityOverrideChange: (Int) -> Unit = {},
 ) {
     val overrideValues = listOf(
         ConfigManager.CAPABILITY_OVERRIDE_AUTO,
-        ConfigManager.CAPABILITY_OVERRIDE_FORCE_ENABLED,
         ConfigManager.CAPABILITY_OVERRIDE_FORCE_DISABLED,
+        ConfigManager.CAPABILITY_OVERRIDE_FORCE_ENABLED,
     )
     val overrideOptions = listOf(
         stringResource(R.string.capability_auto),
-        stringResource(R.string.capability_force_enabled),
         stringResource(R.string.capability_force_disabled),
+        stringResource(R.string.capability_force_enabled),
     )
 
     LazyColumn(
@@ -68,6 +70,17 @@ fun DeviceCapabilitiesPage(
                     items = overrideOptions,
                     selectedIndex = overrideValues.indexOf(spatialSoundSwitchCapabilityOverride.value).coerceAtLeast(0),
                     onSelectedIndexChange = { onSpatialSoundSwitchCapabilityOverrideChange(overrideValues[it]) },
+                )
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.anc_implementation),
+                    summary = stringResource(R.string.anc_implementation_summary),
+                    items = listOf(
+                        stringResource(R.string.capability_auto),
+                        stringResource(R.string.anc_implementation_standard),
+                        stringResource(R.string.anc_implementation_compatible),
+                    ),
+                    selectedIndex = overrideValues.indexOf(ancImplementationCapabilityOverride.value).coerceAtLeast(0),
+                    onSelectedIndexChange = { onAncImplementationCapabilityOverrideChange(overrideValues[it]) },
                 )
             }
         }

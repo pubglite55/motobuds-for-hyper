@@ -131,4 +131,8 @@
     <string name="restart_scope_summary">Select apps to restart with root.</string>
     <string name="restart_scope_success">Scope restarted</string>
     <string name="restart_scope_failed">Root restart failed</string>
+    <string name="anc_implementation">ANC Compatibility Mode</string>
+    <string name="anc_implementation_summary">Auto follows model detection. Manual switch for ANC behavior compatibility.</string>
+    <string name="anc_implementation_standard">Standard</string>
+    <string name="anc_implementation_compatible">Compatible</string>
 </resources>
