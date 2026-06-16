@@ -177,6 +177,13 @@ object Cmd {
     const val EQ_PRESET_RESPONSE = 0x810F
     /** Unsolicited push notification when EQ preset changes. Payload `[preset]`. */
     const val EQ_PRESET_NOTIFY = 0x0504
+
+    /** Query the bud's supported-notification bitmap (subscribe handshake step 1). */
+    const val QUERY_NOTIFICATION_SUPPORT = 0x0200
+    /** Reply to [QUERY_NOTIFICATION_SUPPORT]: `[status, count, id1, id2, …]`. */
+    const val NOTIFICATION_SUPPORT_RESPONSE = 0x8200
+    /** Subscribe to N notification IDs: payload `[count, id1, id2, …]` (handshake step 2). */
+    const val REGISTER_MULTI_NOTIFICATION = 0x0205
 }
 
 /** Pre-built packets. */
@@ -240,15 +247,23 @@ object Enums {
         0xAA.toByte(), 0x07, 0x00, 0x00, 0x06, 0x01, 0xF0.toByte(), 0x00, 0x00
     )
 
-    /**
-     * Subscribe to status (0x02) + ANC/noise-mode (0x03) notifications:
-     * AA 0A 00 00 05 02 3A 03 00 02 02 03 — payload `[count=2, id 02, id 03]`.
-     * id 0x03 is the ANC/noise-mode channel that carries the smart-mode
-     * current-strength notify (0x0204 type 03 key 04) read by [SmartAncLevelParser].
-     */
+    /** Enable active earphone status reports: AA 09 00 00 05 02 3A 02 00 01 02 */
     val ENABLE_STATUS_REPORT: ByteArray = byteArrayOf(
-        0xAA.toByte(), 0x0A, 0x00, 0x00, 0x05, 0x02, 0x3A, 0x03, 0x00, 0x02, 0x02, 0x03
+        0xAA.toByte(), 0x09, 0x00, 0x00, 0x05, 0x02, 0x3A, 0x02, 0x00, 0x01, 0x02
     )
+
+    /** Query the bud's supported-notification bitmap. Empty payload. */
+    val QUERY_NOTIFICATION_SUPPORT: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.QUERY_NOTIFICATION_SUPPORT, payload = byteArrayOf()
+    )
+
+    /** Subscribe to the given notification IDs: payload `[count, id1, id2, …]`. */
+    fun registerMultiNotification(ids: ByteArray): ByteArray {
+        val payload = ByteArray(ids.size + 1)
+        payload[0] = ids.size.toByte()
+        ids.copyInto(payload, destinationOffset = 1)
+        return OppoPackets.buildPacket(cmd = Cmd.REGISTER_MULTI_NOTIFICATION, payload = payload)
+    }
 
     /** Query ANC mode: AA 09 00 00 0C 01 00 02 00 01 01 */
     val QUERY_ANC: ByteArray = OppoPackets.buildPacket(
@@ -782,6 +797,33 @@ object SwitchFeatureSetParser {
             }
         }
         return null
+    }
+}
+
+/**
+ * Parser for the bud's "supported notification IDs" response (cmd 0x8200), the
+ * reply to [Enums.QUERY_NOTIFICATION_SUPPORT]. Payload: `[status, count, id1, …]`.
+ * Returns the raw advertised ID bytes; the caller picks which to subscribe to via
+ * [Enums.registerMultiNotification]. The ID→feature mapping is the same across
+ * OPPO buds, so subscribing the advertised list (minus the 0xFx debug channels)
+ * enables the smart-mode current-strength notify (0x0204 type 03 key 04) read by
+ * [SmartAncLevelParser] without hardcoding per-model IDs.
+ */
+object NotificationSupportParser {
+    fun parse(data: ByteArray): ByteArray? {
+        if (data.size < 9) return null
+        if (data[0] != 0xAA.toByte()) return null
+        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.NOTIFICATION_SUPPORT_RESPONSE) return null
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        val payloadStart = 9
+        if (data.size < payloadStart + payLen) return null
+        if (payLen < 2) return null
+        val count = data[payloadStart + 1].toInt() and 0xFF
+        val idsStart = payloadStart + 2
+        val idsEnd = minOf(idsStart + count, payloadStart + payLen, data.size)
+        if (idsEnd <= idsStart) return null
+        return data.copyOfRange(idsStart, idsEnd)
     }
 }
 

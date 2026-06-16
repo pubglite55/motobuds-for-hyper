@@ -610,6 +610,10 @@ object RfcommController {
                 delay(300)
                 sendPacketSafe(Enums.ENABLE_STATUS_REPORT)
                 delay(50)
+                // Ask the bud which notifications it can push; we subscribe to the
+                // advertised list (minus 0xFx debug channels) in handleOppoPacket.
+                sendPacketSafe(Enums.QUERY_NOTIFICATION_SUPPORT)
+                delay(50)
                 sendStatusQueryPackets(immediateReconnect = false)
 
                 if (autoGameModeEnabled) {
@@ -699,6 +703,19 @@ object RfcommController {
     @OptIn(ExperimentalStdlibApi::class)
     private fun handleOppoPacket(packet: ByteArray) {
         Log.v(TAG, "Received: ${packet.toHexString(HexFormat.UpperCase)}")
+
+        // Subscribe handshake: the bud replies to QUERY_NOTIFICATION_SUPPORT with the
+        // notification IDs it can push. Subscribe to all of them except the 0xFx debug
+        // channels (f1/f2/f3 push high-rate diagnostic frames that only add latency);
+        // id 0x03 in this list carries the smart-mode current-strength notify.
+        NotificationSupportParser.parse(packet)?.let { ids ->
+            val wanted = ids.filter { (it.toInt() and 0xFF) < 0xF0 }.toByteArray()
+            Log.d(TAG, "Notification ids advertised=${ids.toHexString(HexFormat.UpperCase)} subscribing=${wanted.toHexString(HexFormat.UpperCase)}")
+            CoroutineScope(Dispatchers.IO).launch {
+                sendPacketSafe(Enums.registerMultiNotification(wanted))
+            }
+            return
+        }
 
         // Smart-mode current noise-reduction level (cmd 0x0204 type 03 key 04).
         val smartLevel = SmartAncLevelParser.parse(packet)
