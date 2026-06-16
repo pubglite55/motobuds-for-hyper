@@ -608,8 +608,6 @@ object RfcommController {
                 startPacketReader(newSocket.inputStream)
 
                 delay(300)
-                sendPacketSafe(Enums.ENABLE_STATUS_REPORT)
-                delay(50)
                 // Ask the bud which notifications it can push; we subscribe to the
                 // advertised list (minus 0xFx debug channels) in handleOppoPacket.
                 sendPacketSafe(Enums.QUERY_NOTIFICATION_SUPPORT)

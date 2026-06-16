@@ -247,11 +247,6 @@ object Enums {
         0xAA.toByte(), 0x07, 0x00, 0x00, 0x06, 0x01, 0xF0.toByte(), 0x00, 0x00
     )
 
-    /** Enable active earphone status reports: AA 09 00 00 05 02 3A 02 00 01 02 */
-    val ENABLE_STATUS_REPORT: ByteArray = byteArrayOf(
-        0xAA.toByte(), 0x09, 0x00, 0x00, 0x05, 0x02, 0x3A, 0x02, 0x00, 0x01, 0x02
-    )
-
     /** Query the bud's supported-notification bitmap. Empty payload. */
     val QUERY_NOTIFICATION_SUPPORT: ByteArray = OppoPackets.buildPacket(
         cmd = Cmd.QUERY_NOTIFICATION_SUPPORT, payload = byteArrayOf()
