@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearStatus
@@ -56,6 +56,10 @@ fun PodDetailPage(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit = {},
     gameMode: Boolean = false,
     onGameModeChange: (Boolean) -> Unit = {},
+    volumeBoost: Boolean = false,
+    onVolumeBoostChange: (Boolean) -> Unit = {},
+    hiResMode: Boolean = false,
+    onHiResModeChange: (Boolean) -> Unit = {},
     spatialAudioMode: Int = ConfigManager.SPATIAL_AUDIO_OFF,
     onSpatialAudioModeChange: (Int) -> Unit = {},
     dualDeviceConnection: Boolean = false,
@@ -117,6 +121,10 @@ fun PodDetailPage(
                     onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange,
                     gameMode = gameMode,
                     onGameModeChange = onGameModeChange,
+                    volumeBoost = volumeBoost,
+                    onVolumeBoostChange = onVolumeBoostChange,
+                    hiResMode = hiResMode,
+                    onHiResModeChange = onHiResModeChange,
                     spatialAudioMode = spatialAudioMode,
                     onSpatialAudioModeChange = onSpatialAudioModeChange,
                     dualDeviceConnection = dualDeviceConnection,
@@ -159,6 +167,10 @@ fun PodDetailPage(
             onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange,
             gameMode = gameMode,
             onGameModeChange = onGameModeChange,
+            volumeBoost = volumeBoost,
+            onVolumeBoostChange = onVolumeBoostChange,
+            hiResMode = hiResMode,
+            onHiResModeChange = onHiResModeChange,
             spatialAudioMode = spatialAudioMode,
             onSpatialAudioModeChange = onSpatialAudioModeChange,
             dualDeviceConnection = dualDeviceConnection,
@@ -192,6 +204,10 @@ private fun LazyListScope.podControlItems(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     gameMode: Boolean,
     onGameModeChange: (Boolean) -> Unit,
+    volumeBoost: Boolean,
+    onVolumeBoostChange: (Boolean) -> Unit,
+    hiResMode: Boolean,
+    onHiResModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
     dualDeviceConnection: Boolean,
@@ -228,10 +244,7 @@ private fun LazyListScope.podControlItems(
             AncSwitch(
                 ancStatus = ancMode,
                 onAncModeChange = onAncModeChange,
-                smartAncLevel = smartAncLevel,
-                adaptiveModeEnabled = adaptiveModeEnabled,
-                transparencyVocalEnhancement = transparencyVocalEnhancement,
-                onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+                adaptiveModeEnabled = adaptiveModeEnabled
             )
         }
     }
@@ -283,12 +296,6 @@ private fun LazyListScope.podControlItems(
                 items = eqOptions,
                 selectedIndex = EqPreset.ALL.indexOf(eqPreset).coerceAtLeast(0),
                 onSelectedIndexChange = { onEqPresetChange(EqPreset.ALL[it]) }
-            )
-            SwitchPreference(
-                title = stringResource(R.string.dual_device_connection),
-                summary = stringResource(if (dualDeviceConnection) R.string.enabled else R.string.off),
-                checked = dualDeviceConnection,
-                onCheckedChange = onDualDeviceConnectionChange
             )
         }
     }

@@ -2,7 +2,7 @@ package moe.chenxy.oppopods.pods
 
 import android.content.Context
 import android.content.Intent
-import moe.chenxy.oppopods.BuildConfig
+import moe.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 import java.text.SimpleDateFormat
 import java.util.Date

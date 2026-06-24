@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference

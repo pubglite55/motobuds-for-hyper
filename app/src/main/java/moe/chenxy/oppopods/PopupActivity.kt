@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.detectDeviceCapabilities
 import moe.chenxy.oppopods.config.ConfigManager
@@ -113,7 +114,7 @@ class PopupActivity : ComponentActivity() {
     }
 
     private fun openHeyTapOrModule() {
-        val intent = packageManager.getLaunchIntentForPackage("com.heytap.headset")
+        val intent = packageManager.getLaunchIntentForPackage("com.motorola.motobuds")
         if (intent != null) {
             startActivity(intent)
         } else {
@@ -166,7 +167,6 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     val batteryParams = remember { mutableStateOf(BatteryParams()) }
     val ancMode = remember { mutableStateOf(NoiseControlMode.OFF) }
     val gameMode = remember { mutableStateOf(false) }
-    val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val deviceName = remember { mutableStateOf("") }
     val appConfig = remember { ConfigManager.refreshFromPrefs(prefs) }
     val capabilities = detectDeviceCapabilities(
@@ -187,10 +187,6 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                             2 -> NoiseControlMode.NOISE_CANCELLATION
                             3 -> NoiseControlMode.TRANSPARENCY
                             4 -> NoiseControlMode.ADAPTIVE
-                            5 -> NoiseControlMode.NOISE_CANCELLATION_SMART
-                            6 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
-                            7 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
-                            8 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
                             else -> NoiseControlMode.OFF
                         }
                     }
@@ -208,9 +204,6 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                     OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED -> {
                         gameMode.value = p1.getBooleanExtra("enabled", false)
                     }
-                    OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED -> {
-                        transparencyVocalEnhancement.value = p1.getBooleanExtra("enabled", false)
-                    }
                 }
             }
         }
@@ -223,7 +216,6 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             addAction(OppoPodsAction.ACTION_PODS_CONNECTED)
             addAction(OppoPodsAction.ACTION_PODS_DISCONNECTED)
             addAction(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
-            addAction(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
         context.sendBroadcast(Intent(OppoPodsAction.ACTION_PODS_UI_INIT).apply {
@@ -241,11 +233,13 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     }
 
     // Timeout fallback: show dialog even if no response within 500ms
-    // Periodic refresh: poll earbuds every 15s while popup is open
     LaunchedEffect(Unit) {
         delay(500)
         if (!showDialog.value) showDialog.value = true
+    }
 
+    // Periodic refresh: poll earbuds every 15s while popup is open
+    LaunchedEffect(Unit) {
         while (true) {
             delay(15_000)
             context.sendBroadcast(Intent(OppoPodsAction.ACTION_REFRESH_STATUS).apply {
@@ -262,10 +256,6 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             NoiseControlMode.NOISE_CANCELLATION -> 2
             NoiseControlMode.TRANSPARENCY -> 3
             NoiseControlMode.ADAPTIVE -> 4
-            NoiseControlMode.NOISE_CANCELLATION_SMART -> 5
-            NoiseControlMode.NOISE_CANCELLATION_LIGHT -> 6
-            NoiseControlMode.NOISE_CANCELLATION_MEDIUM -> 7
-            NoiseControlMode.NOISE_CANCELLATION_DEEP -> 8
         }
         Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
             putExtra("status", status)
@@ -278,16 +268,6 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     fun setGameMode(enabled: Boolean) {
         gameMode.value = enabled
         Intent(OppoPodsAction.ACTION_GAME_MODE_SET).apply {
-            putExtra("enabled", enabled)
-            setPackage("com.android.bluetooth")
-            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            context.sendBroadcast(this)
-        }
-    }
-
-    fun setTransparencyVocalEnhancement(enabled: Boolean) {
-        transparencyVocalEnhancement.value = enabled
-        Intent(OppoPodsAction.ACTION_TRANSPARENCY_VOCAL_ENHANCEMENT_SET).apply {
             putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
@@ -315,10 +295,8 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                     batteryParams = batteryParams.value,
                     ancMode = ancMode.value,
                     gameMode = gameMode.value,
-                    transparencyVocalEnhancement = transparencyVocalEnhancement.value,
                     onAncModeChange = ::setAncMode,
                     onGameModeChange = ::setGameMode,
-                    onTransparencyVocalEnhancementChange = ::setTransparencyVocalEnhancement,
                     onMore = onMore,
                     onDone = { showDialog.value = false },
                     adaptiveModeEnabled = capabilities.adaptiveSupported
@@ -328,10 +306,8 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                     batteryParams = batteryParams.value,
                     ancMode = ancMode.value,
                     gameMode = gameMode.value,
-                    transparencyVocalEnhancement = transparencyVocalEnhancement.value,
                     onAncModeChange = ::setAncMode,
                     onGameModeChange = ::setGameMode,
-                    onTransparencyVocalEnhancementChange = ::setTransparencyVocalEnhancement,
                     onMore = onMore,
                     onDone = { showDialog.value = false },
                     adaptiveModeEnabled = capabilities.adaptiveSupported
@@ -346,10 +322,8 @@ private fun PortraitPopupBody(
     batteryParams: BatteryParams,
     ancMode: NoiseControlMode,
     gameMode: Boolean,
-    transparencyVocalEnhancement: Boolean,
     onAncModeChange: (NoiseControlMode) -> Unit,
     onGameModeChange: (Boolean) -> Unit,
-    onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     onMore: () -> Unit,
     onDone: () -> Unit,
     adaptiveModeEnabled: Boolean = true
@@ -366,9 +340,7 @@ private fun PortraitPopupBody(
             AncSwitch(
                 ancStatus = ancMode,
                 onAncModeChange = onAncModeChange,
-                adaptiveModeEnabled = adaptiveModeEnabled,
-                transparencyVocalEnhancement = transparencyVocalEnhancement,
-                onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+                adaptiveModeEnabled = adaptiveModeEnabled
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -404,10 +376,8 @@ private fun LandscapePopupBody(
     batteryParams: BatteryParams,
     ancMode: NoiseControlMode,
     gameMode: Boolean,
-    transparencyVocalEnhancement: Boolean,
     onAncModeChange: (NoiseControlMode) -> Unit,
     onGameModeChange: (Boolean) -> Unit,
-    onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     onMore: () -> Unit,
     onDone: () -> Unit,
     adaptiveModeEnabled: Boolean = true
@@ -438,9 +408,7 @@ private fun LandscapePopupBody(
                     ancMode,
                     onAncModeChange = onAncModeChange,
                     compact = true,
-                    adaptiveModeEnabled = adaptiveModeEnabled,
-                    transparencyVocalEnhancement = transparencyVocalEnhancement,
-                    onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+                    adaptiveModeEnabled = adaptiveModeEnabled
                 )
             }
         }

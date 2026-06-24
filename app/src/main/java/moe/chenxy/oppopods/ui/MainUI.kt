@@ -44,7 +44,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
 import moe.chenxy.oppopods.OppoPodsApp
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.config.PodImagePrefs
 import moe.chenxy.oppopods.config.PodImageResource
@@ -114,6 +114,8 @@ fun MainUI(
     val gameMode = remember { mutableStateOf(false) }
     val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val dualDeviceConnection = remember { mutableStateOf(false) }
+    val volumeBoost = remember { mutableStateOf(false) }
+    val hiResMode = remember { mutableStateOf(false) }
     val tabs = remember { MainTab.entries.toList() }
     var selectedTab by remember { mutableStateOf(MainTab.Module) }
     var hasAppliedDefaultTab by remember { mutableStateOf(false) }
@@ -233,10 +235,6 @@ fun MainUI(
                             2 -> NoiseControlMode.NOISE_CANCELLATION
                             3 -> NoiseControlMode.TRANSPARENCY
                             4 -> NoiseControlMode.ADAPTIVE
-                            5 -> NoiseControlMode.NOISE_CANCELLATION_SMART
-                            6 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
-                            7 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
-                            8 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
                             else -> NoiseControlMode.OFF
                         }
                     }
@@ -263,6 +261,14 @@ fun MainUI(
 
                     OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED -> {
                         gameMode.value = p1.getBooleanExtra("enabled", false)
+                    }
+
+                    OppoPodsAction.ACTION_PODS_VOLUME_BOOST_CHANGED -> {
+                        volumeBoost.value = p1.getBooleanExtra("enabled", false)
+                    }
+
+                    OppoPodsAction.ACTION_PODS_HI_RES_MODE_CHANGED -> {
+                        hiResMode.value = p1.getBooleanExtra("enabled", false)
                     }
 
                     OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED -> {
@@ -353,6 +359,8 @@ fun MainUI(
             addAction(OppoPodsAction.ACTION_PODS_BATTERY_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_VOLUME_BOOST_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_HI_RES_MODE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_EQ_PRESET_CHANGED)
@@ -380,7 +388,7 @@ fun MainUI(
         while (true) {
             sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_PODS_UI_INIT)
             sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_REFRESH_STATUS)
-            delay(30_000L)
+            delay(15_000L)
         }
     }
 
@@ -406,10 +414,6 @@ fun MainUI(
             NoiseControlMode.NOISE_CANCELLATION -> 2
             NoiseControlMode.TRANSPARENCY -> 3
             NoiseControlMode.ADAPTIVE -> 4
-            NoiseControlMode.NOISE_CANCELLATION_SMART -> 5
-            NoiseControlMode.NOISE_CANCELLATION_LIGHT -> 6
-            NoiseControlMode.NOISE_CANCELLATION_MEDIUM -> 7
-            NoiseControlMode.NOISE_CANCELLATION_DEEP -> 8
         }
         Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
             this.putExtra("status", status)
@@ -422,6 +426,26 @@ fun MainUI(
     fun setGameMode(enabled: Boolean) {
         gameMode.value = enabled
         Intent(OppoPodsAction.ACTION_GAME_MODE_SET).apply {
+            this.putExtra("enabled", enabled)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun setVolumeBoost(enabled: Boolean) {
+        volumeBoost.value = enabled
+        Intent(OppoPodsAction.ACTION_VOLUME_BOOST_SET).apply {
+            this.putExtra("enabled", enabled)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun setHiResMode(enabled: Boolean) {
+        hiResMode.value = enabled
+        Intent(OppoPodsAction.ACTION_HI_RES_MODE_SET).apply {
             this.putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
@@ -644,6 +668,10 @@ fun MainUI(
                 onTransparencyVocalEnhancementChange = { setTransparencyVocalEnhancement(it) },
                 displayGameMode = displayGameMode,
                 onGameModeChange = { setGameMode(it) },
+                displayVolumeBoost = volumeBoost.value,
+                onVolumeBoostChange = { setVolumeBoost(it) },
+                displayHiResMode = hiResMode.value,
+                onHiResModeChange = { setHiResMode(it) },
                 spatialAudioMode = spatialAudioMode.value,
                 onSpatialAudioModeChange = { setSpatialAudioMode(it) },
                 eqPreset = eqPreset.value,

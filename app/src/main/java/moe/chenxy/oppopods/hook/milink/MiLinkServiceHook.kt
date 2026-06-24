@@ -6,7 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import moe.chenxy.oppopods.BuildConfig
+import moe.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.hook.HookContext
 import moe.chenxy.oppopods.hook.Log
@@ -21,8 +21,8 @@ import moe.chenxy.oppopods.utils.miuiStrongToast.data.PodParams
 
 @SuppressLint("MissingPermission")
 object MiLinkServiceHook : HookContext() {
-    internal const val TAG = "OppoPods-MiLink"
-    private const val PREFS_NAME = "oppopods_milink_state"
+    internal const val TAG = "MotoBuds-MiLink"
+    private const val PREFS_NAME = "motobuds_milink_state"
     private val knownOppoAddresses = linkedSetOf<String>()
     internal var context: Context? = null
     private var receiverRegistered = false
@@ -230,7 +230,7 @@ object MiLinkServiceHook : HookContext() {
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isOppoAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val result = name.contains("oppo", ignoreCase = true)
+        val result = name.contains("moto", ignoreCase = true) || name.contains("guitar", ignoreCase = true)
         if (result && address != null) {
             knownOppoAddresses.add(address.uppercase())
             currentAddress = address

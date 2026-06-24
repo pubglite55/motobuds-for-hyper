@@ -10,7 +10,7 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Handler
-import moe.chenxy.oppopods.BuildConfig
+import moe.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.pods.RfcommController
 import moe.chenxy.oppopods.utils.SystemApisUtils.setIconVisibility
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
@@ -88,11 +88,11 @@ object HeadsetStateDispatcher : HookContext() {
     }
 
     /**
-     * Detect OPPO earphones by checking if the device name contains "oppo" (case insensitive).
+     * Detect Moto Buds earphones by checking if the device name contains "moto" (case insensitive).
      */
     @SuppressLint("MissingPermission")
     fun isOppoPod(device: BluetoothDevice): Boolean {
         val name = device.name ?: return false
-        return name.contains("oppo", ignoreCase = true)
+        return name.contains("moto", ignoreCase = true) || name.contains("guitar", ignoreCase = true)
     }
 }

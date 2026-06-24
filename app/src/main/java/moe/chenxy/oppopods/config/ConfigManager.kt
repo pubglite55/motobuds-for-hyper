@@ -21,8 +21,8 @@ data class AppConfig(
 )
 
 object ConfigManager {
-    private const val TAG = "OppoPods-Config"
-    const val PREFS_NAME = "oppopods_settings"
+    private const val TAG = "MotoBuds-Config"
+    const val PREFS_NAME = "motobuds_settings"
     const val PREF_KEY_CONFIG_JSON = "config_json"
     const val PREF_KEY_FAKE_DEVICE_ID = "fake_device_id"
     const val PREF_KEY_LOG_LEVEL = "log_level"
@@ -34,6 +34,10 @@ object ConfigManager {
     const val PREF_KEY_SPATIAL_AUDIO_CAPABILITY_OVERRIDE = "spatial_audio_capability_override"
     const val PREF_KEY_SPATIAL_SOUND_SWITCH_CAPABILITY_OVERRIDE = "spatial_sound_switch_capability_override"
     const val PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE = "anc_implementation_capability_override"
+    const val PREF_KEY_LAST_ANC_MODE = "last_anc_mode"
+    const val PREF_KEY_LAST_GAME_MODE = "last_game_mode"
+    const val PREF_KEY_LAST_VOLUME_BOOST = "last_volume_boost"
+    const val PREF_KEY_LAST_HI_RES_MODE = "last_hi_res_mode"
     const val DEFAULT_FAKE_DEVICE_ID = "01010607"
     const val LOG_LEVEL_OFF = 0
     const val LOG_LEVEL_BASIC = 1
@@ -158,6 +162,21 @@ object ConfigManager {
         val config = current().copy(ancImplementationCapabilityOverride = override.normalizedCapabilityOverride())
         save(prefs, service, config)
     }
+
+    fun saveLastState(prefs: SharedPreferences, ancMode: Int, gameMode: Boolean, volumeBoost: Boolean, hiResMode: Boolean) {
+        prefs.edit()
+            .putInt(PREF_KEY_LAST_ANC_MODE, ancMode)
+            .putBoolean(PREF_KEY_LAST_GAME_MODE, gameMode)
+            .putBoolean(PREF_KEY_LAST_VOLUME_BOOST, volumeBoost)
+            .putBoolean(PREF_KEY_LAST_HI_RES_MODE, hiResMode)
+            .apply()
+        Log.d(TAG, "Saved last state: anc=$ancMode game=$gameMode volume=$volumeBoost hiRes=$hiResMode")
+    }
+
+    fun getLastAncMode(prefs: SharedPreferences): Int = prefs.getInt(PREF_KEY_LAST_ANC_MODE, 1)
+    fun getLastGameMode(prefs: SharedPreferences): Boolean = prefs.getBoolean(PREF_KEY_LAST_GAME_MODE, false)
+    fun getLastVolumeBoost(prefs: SharedPreferences): Boolean = prefs.getBoolean(PREF_KEY_LAST_VOLUME_BOOST, false)
+    fun getLastHiResMode(prefs: SharedPreferences): Boolean = prefs.getBoolean(PREF_KEY_LAST_HI_RES_MODE, false)
 
     fun save(prefs: SharedPreferences, config: AppConfig) {
         val oldConfig = cachedConfig

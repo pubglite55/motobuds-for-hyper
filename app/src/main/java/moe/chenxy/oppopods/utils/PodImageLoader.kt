@@ -4,13 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.PodImagePrefs
 import moe.chenxy.oppopods.config.PodImageResource
 import moe.chenxy.oppopods.config.imageUri
 
 object PodImageLoader {
-    private const val MODULE_PACKAGE = "moe.chenxy.oppopods"
+    private const val MODULE_PACKAGE = "moe.xiuxiu391.motobuds"
 
     fun loadBitmap(
         context: Context,

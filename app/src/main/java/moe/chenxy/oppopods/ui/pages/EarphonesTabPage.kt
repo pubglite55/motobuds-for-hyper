@@ -10,7 +10,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearStatus
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
@@ -29,6 +29,10 @@ internal fun EarphonesTabPage(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     displayGameMode: Boolean,
     onGameModeChange: (Boolean) -> Unit,
+    displayVolumeBoost: Boolean,
+    onVolumeBoostChange: (Boolean) -> Unit,
+    displayHiResMode: Boolean,
+    onHiResModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
     eqPreset: Int,
@@ -72,6 +76,10 @@ internal fun EarphonesTabPage(
                 onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange,
                 gameMode = displayGameMode,
                 onGameModeChange = onGameModeChange,
+                volumeBoost = displayVolumeBoost,
+                onVolumeBoostChange = onVolumeBoostChange,
+                hiResMode = displayHiResMode,
+                onHiResModeChange = onHiResModeChange,
                 spatialAudioMode = spatialAudioMode,
                 onSpatialAudioModeChange = onSpatialAudioModeChange,
                 eqPreset = eqPreset,

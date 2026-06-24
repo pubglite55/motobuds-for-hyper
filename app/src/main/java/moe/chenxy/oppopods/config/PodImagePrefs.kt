@@ -32,7 +32,7 @@ data class EarphonePref(
 }
 
 object PodImagePrefs {
-    const val AUTHORITY = "moe.chenxy.oppopods.podimages"
+    const val AUTHORITY = "moe.xiuxiu391.motobuds.podimages"
     private const val PREF_KEY_EARPHONES = "earphone_prefs_json"
     private const val IMAGE_DIR = "pod_images"
 

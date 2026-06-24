@@ -4,6 +4,8 @@ import moe.chenxy.oppopods.config.ConfigManager
 
 private val ADAPTIVE_SUPPORTED_DEVICES = arrayOf(
     "OPPO Enco Free4",
+    "moto buds",
+    "Moto Buds",
 )
 
 private val SPATIAL_AUDIO_SUPPORTED_DEVICES = arrayOf(
@@ -15,9 +17,7 @@ private val SPATIAL_SOUND_SWITCH_SUPPORTED_DEVICES = arrayOf(
     "OPPO Enco Air5",
 )
 
-private val LEGACY_ANC_DEVICES = arrayOf(
-    "OPPO Enco Air2 Pro",
-)
+private val LEGACY_ANC_DEVICES: Array<String> = emptyArray()
 
 data class DeviceCapabilities(
     val adaptiveSupported: Boolean,

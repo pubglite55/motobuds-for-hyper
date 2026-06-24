@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.libxposed.service.XposedService
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.EarphonePref
 import moe.chenxy.oppopods.config.PodImageResource
 import moe.chenxy.oppopods.pods.GameModeImplementation
@@ -37,7 +37,6 @@ import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearStatus
 import moe.chenxy.oppopods.ui.dialogs.RestartScope
 import moe.chenxy.oppopods.ui.dialogs.RestartScopeDialog
-import moe.chenxy.oppopods.ui.dialogs.MelodyImageImportDialog
 import moe.chenxy.oppopods.ui.dialogs.PodImageConfigDialog
 import moe.chenxy.oppopods.ui.pages.EarphonesTabPage
 import moe.chenxy.oppopods.ui.pages.HomePage
@@ -89,6 +88,10 @@ internal fun MainTabsScaffold(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     displayGameMode: Boolean,
     onGameModeChange: (Boolean) -> Unit,
+    displayVolumeBoost: Boolean,
+    onVolumeBoostChange: (Boolean) -> Unit,
+    displayHiResMode: Boolean,
+    onHiResModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
     eqPreset: Int,
@@ -158,7 +161,6 @@ internal fun MainTabsScaffold(
         it.address.equals(connectedDeviceAddress, ignoreCase = true)
     }
     var showPodImageDialog by remember { mutableStateOf(false) }
-    var showMelodyImportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedTab) {
         val targetPage = selectedTab.ordinal
@@ -235,6 +237,10 @@ internal fun MainTabsScaffold(
                         onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange,
                         displayGameMode = displayGameMode,
                         onGameModeChange = onGameModeChange,
+                        displayVolumeBoost = displayVolumeBoost,
+                        onVolumeBoostChange = onVolumeBoostChange,
+                        displayHiResMode = displayHiResMode,
+                        onHiResModeChange = onHiResModeChange,
                         spatialAudioMode = spatialAudioMode,
                         onSpatialAudioModeChange = onSpatialAudioModeChange,
                         eqPreset = eqPreset,
@@ -254,7 +260,6 @@ internal fun MainTabsScaffold(
                         onDeviceDisconnect = onDeviceDisconnect,
                         onDismissConnectError = onDismissConnectError,
                         onBackToDevicePicker = onBackToDevicePicker,
-                        onOpenMelodyImport = { showMelodyImportDialog = true },
                         onOpenPodImageConfig = { showPodImageDialog = true },
                         onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
                     )
@@ -294,7 +299,6 @@ internal fun MainTabsScaffold(
             if (isLandscapeDetail) {
                 LandscapeDetailActions(
                     onBackToDevicePicker = onBackToDevicePicker,
-                    onOpenMelodyImport = { showMelodyImportDialog = true },
                     onOpenPodImageConfig = { showPodImageDialog = true },
                     onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
                 )
@@ -317,17 +321,6 @@ internal fun MainTabsScaffold(
             onSave = { address, name, images, clearedImages ->
                 onSavePodImages(address, name, images, clearedImages)
                 showPodImageDialog = false
-            },
-        )
-
-        MelodyImageImportDialog(
-            show = showMelodyImportDialog,
-            currentAddress = connectedDeviceAddress,
-            currentName = displayTitle,
-            onDismissRequest = { showMelodyImportDialog = false },
-            onImport = { address, name, images ->
-                onSavePodImageBytes(address, name, images)
-                showMelodyImportDialog = false
             },
         )
     }
@@ -399,6 +392,10 @@ private fun EarphonesTabShell(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     displayGameMode: Boolean,
     onGameModeChange: (Boolean) -> Unit,
+    displayVolumeBoost: Boolean,
+    onVolumeBoostChange: (Boolean) -> Unit,
+    displayHiResMode: Boolean,
+    onHiResModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
     eqPreset: Int,
@@ -418,7 +415,6 @@ private fun EarphonesTabShell(
     onDeviceDisconnect: (BluetoothDevice) -> Unit,
     onDismissConnectError: () -> Unit,
     onBackToDevicePicker: () -> Unit,
-    onOpenMelodyImport: () -> Unit,
     onOpenPodImageConfig: () -> Unit,
     onOpenSystemHeadsetSettings: () -> Unit,
 ) {
@@ -440,7 +436,6 @@ private fun EarphonesTabShell(
                     actions = {
                         if (showEarphoneDetail) {
                             EarphoneDetailActions(
-                                onOpenMelodyImport = onOpenMelodyImport,
                                 onOpenPodImageConfig = onOpenPodImageConfig,
                                 onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
                             )
@@ -462,6 +457,10 @@ private fun EarphonesTabShell(
             onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange,
             displayGameMode = displayGameMode,
             onGameModeChange = onGameModeChange,
+            displayVolumeBoost = displayVolumeBoost,
+            onVolumeBoostChange = onVolumeBoostChange,
+            displayHiResMode = displayHiResMode,
+            onHiResModeChange = onHiResModeChange,
             spatialAudioMode = spatialAudioMode,
             onSpatialAudioModeChange = onSpatialAudioModeChange,
             eqPreset = eqPreset,
@@ -567,7 +566,6 @@ private fun SettingsTabPage(
 @Composable
 private fun LandscapeDetailActions(
     onBackToDevicePicker: () -> Unit,
-    onOpenMelodyImport: () -> Unit,
     onOpenPodImageConfig: () -> Unit,
     onOpenSystemHeadsetSettings: () -> Unit,
 ) {
@@ -580,18 +578,6 @@ private fun LandscapeDetailActions(
         Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
     }
     Box(Modifier.fillMaxSize()) {
-        IconButton(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 8.dp, end = 104.dp)
-                .zIndex(1f),
-            onClick = onOpenMelodyImport,
-        ) {
-            Icon(
-                imageVector = MiuixIcons.Import,
-                contentDescription = stringResource(R.string.import_melody_images),
-            )
-        }
         IconButton(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -621,16 +607,9 @@ private fun LandscapeDetailActions(
 
 @Composable
 private fun EarphoneDetailActions(
-    onOpenMelodyImport: () -> Unit,
     onOpenPodImageConfig: () -> Unit,
     onOpenSystemHeadsetSettings: () -> Unit,
 ) {
-    IconButton(onClick = onOpenMelodyImport) {
-        Icon(
-            imageVector = MiuixIcons.Import,
-            contentDescription = stringResource(R.string.import_melody_images),
-        )
-    }
     IconButton(onClick = onOpenPodImageConfig) {
         Icon(
             imageVector = MiuixIcons.Edit,

@@ -12,7 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import kotlinx.serialization.json.Json
-import moe.chenxy.oppopods.BuildConfig
+import moe.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.hook.Log
 import moe.chenxy.oppopods.utils.SystemApisUtils.isHyperOS
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
@@ -104,7 +104,7 @@ object MiuiStrongToastUtil {
         batteryParams: BatteryParams,
         device: BluetoothDevice? = null,
     ) {
-        val intent = Intent("chen.action.oppopods.sendstrongtoast")
+        val intent = Intent("xiuxiu.action.motobuds.sendstrongtoast")
         intent.putExtra("batteryParams", batteryParams)
         intent.putExtra("address", device?.address.orEmpty())
         intent.`package` = "com.xiaomi.bluetooth"
@@ -116,7 +116,7 @@ object MiuiStrongToastUtil {
         batteryParams: BatteryParams,
         device: BluetoothDevice,
     ) {
-        val intent = Intent("chen.action.oppopods.updatepodsnotification")
+        val intent = Intent("xiuxiu.action.motobuds.updatepodsnotification")
         intent.putExtra("batteryParams", batteryParams)
         intent.putExtra("device", device)
         intent.`package` = "com.xiaomi.bluetooth"
@@ -127,7 +127,7 @@ object MiuiStrongToastUtil {
         context: Context,
         device: BluetoothDevice,
     ) {
-        val intent = Intent("chen.action.oppopods.cancelpodsnotification")
+        val intent = Intent("xiuxiu.action.motobuds.cancelpodsnotification")
         intent.putExtra("device", device)
         intent.`package` = "com.xiaomi.bluetooth"
         context.sendBroadcast(intent)

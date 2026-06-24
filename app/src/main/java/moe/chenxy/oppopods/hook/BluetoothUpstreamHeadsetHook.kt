@@ -12,7 +12,7 @@ import android.os.Looper
 import android.os.Bundle
 import android.os.Parcel
 import java.lang.reflect.Method
-import moe.chenxy.oppopods.BuildConfig
+import moe.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.RfcommController
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
@@ -22,7 +22,7 @@ import org.json.JSONObject
 
 @SuppressLint("MissingPermission")
 class BluetoothUpstreamHeadsetHook : HookContext() {
-    private val TAG = "OppoPods-Upstream"
+    private val TAG = "MotoBuds-Upstream"
     private val DESCRIPTOR = "com.android.bluetooth.ble.app.IMiuiHeadsetService"
     private val knownOppoAddresses = linkedSetOf<String>()
     private val callbacks = linkedMapOf<IBinder, Any>()
@@ -610,7 +610,7 @@ class BluetoothUpstreamHeadsetHook : HookContext() {
         if (device == null) return false
         val address = runCatching { device.address }.getOrNull()
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val result = name.contains("oppo", ignoreCase = true) || (address != null && isOppoAddress(address))
+        val result = name.contains("moto", ignoreCase = true) || name.contains("guitar", ignoreCase = true) || (address != null && isOppoAddress(address))
         if (result && address != null) knownOppoAddresses.add(address.uppercase())
         return result
     }
@@ -655,31 +655,13 @@ class BluetoothUpstreamHeadsetHook : HookContext() {
     }
 
     private fun realRefreshPayload(): String {
-        val localSnapshot = runCatching { RfcommController.currentStatusSnapshot() }
-            .getOrNull()
-            ?.takeIf { it.address != null || it.battery != null }
-        val battery = localSnapshot?.battery ?: currentBattery
+        val battery = currentBattery
         val anc = currentAnc
-        if (!hasTransparencyVocalEnhancementState && localSnapshot != null) {
-            currentTransparencyVocalEnhancement = localSnapshot.transparencyVocalEnhancement
-            hasTransparencyVocalEnhancementState = true
-        }
-        val transparencyVocalEnhancement = if (hasTransparencyVocalEnhancementState) {
-            currentTransparencyVocalEnhancement
-        } else {
-            localSnapshot?.transparencyVocalEnhancement ?: currentTransparencyVocalEnhancement
-        }
-        localSnapshot?.address?.let {
-            currentAddress = it
-            knownOppoAddresses.add(it.uppercase())
-        }
-        localSnapshot?.deviceName?.let { currentName = it }
+        val transparencyVocalEnhancement = currentTransparencyVocalEnhancement
         return RfcommController.miuiRefreshPayload(battery, anc, transparencyVocalEnhancement)
     }
 
-    private fun effectiveBattery(): BatteryParams? {
-        return runCatching { RfcommController.currentStatusSnapshot().battery }.getOrNull() ?: currentBattery
-    }
+    private fun effectiveBattery(): BatteryParams? = currentBattery
 
     private fun displayBattery(params: PodParams?): Int? {
         if (params?.isConnected != true) return null

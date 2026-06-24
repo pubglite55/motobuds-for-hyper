@@ -5,35 +5,35 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 
     <queries>
-        <package android:name="com.heytap.headset" />
+        <package android:name="com.motorola.motobuds" />
         <package android:name="com.android.settings" />
     </queries>
 
     <application
-        android:name=".OppoPodsApp"
+        android:name="moe.chenxy.oppopods.OppoPodsApp"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:extractNativeLibs="false"
         android:enableOnBackInvokedCallback="true"
         android:supportsRtl="true"
-        android:theme="@style/Theme.OppoPods">
+        android:theme="@style/Theme.MotoBuds">
 
         <activity-alias
-            android:name=".LauncherActivity"
+            android:name="moe.chenxy.oppopods.LauncherActivity"
             android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
             android:roundIcon="@mipmap/ic_launcher_round"
-            android:targetActivity=".MainActivity">
+            android:targetActivity="moe.chenxy.oppopods.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
 
-        <activity android:name=".MainActivity"
+        <activity android:name="moe.chenxy.oppopods.MainActivity"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:exported="true">
@@ -42,19 +42,19 @@
                 <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
             </intent-filter>
         </activity>
-        <activity android:name=".PopupActivity"
-            android:theme="@style/Theme.OppoPods.Popup"
+        <activity android:name="moe.chenxy.oppopods.PopupActivity"
+            android:theme="@style/Theme.MotoBuds.Popup"
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="chen.action.oppopods.show_pods_ui" />
+                <action android:name="xiuxiu.action.motobuds.show_pods_ui" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
         <provider
-            android:name=".config.PodImageProvider"
-            android:authorities="moe.chenxy.oppopods.podimages"
+            android:name="moe.chenxy.oppopods.config.PodImageProvider"
+            android:authorities="moe.xiuxiu391.motobuds.podimages"
             android:exported="true"
             android:grantUriPermissions="false" />
         <!-- Set as Xposed Module -->
@@ -65,7 +65,7 @@
         <!-- Set your Xposed Module description -->
         <meta-data
             android:name="xposeddescription"
-            android:value="OPPO Earphones Support for Xiaomi HyperOS." />
+            android:value="Moto Buds Earphones Support for Xiaomi HyperOS." />
 
         <!-- The minimum Xposed version number -->
         <meta-data

@@ -19,7 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import moe.chenxy.oppopods.BuildConfig
+import moe.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.utils.MediaControl
 import moe.chenxy.oppopods.utils.SystemApisUtils
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressLint("MissingPermission", "StaticFieldLeak")
 object RfcommController {
-    private const val TAG = "OppoPods-RfcommController"
+    private const val TAG = "MotoBuds-RfcommController"
     private const val AUTO_RECONNECT_DELAY_MS = 120_000L
     private const val APP_UI_ACTIVE_TIMEOUT_MS = 75_000L
 
@@ -62,11 +62,15 @@ object RfcommController {
      *  level smart mode is currently auto-applying (light/medium/deep). */
     private var currentSmartAncLevel: Int = -1
     private var currentGameMode: Boolean = false
+    private var currentVolumeBoost: Boolean = false
     private var currentTransparencyVocalEnhancement: Boolean = false
     private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
     /** -1 = unknown; otherwise one of [EqPreset.ALL]. */
     private var currentEqPreset: Int = -1
     private var currentDualDeviceConnection: Boolean = false
+    private var currentInEarLeft: Boolean = false
+    private var currentInEarRight: Boolean = false
+    private var currentInCase: Boolean = false
     private var autoGameModeEnabled: Boolean = false
     private var gameModeImplementation: GameModeImplementation = GameModeImplementation.STANDARD
     private var lastGameModeStatusUpdateMs: Long = 0L
@@ -95,7 +99,7 @@ object RfcommController {
     private var readerJob: kotlinx.coroutines.Job? = null
     private val reconnectAttempts = AtomicInteger(0)
     private var reconnectPending = false
-    private val OPPO_RFCOMM_UUID: UUID = UUID.fromString("0000079A-D102-11E1-9B23-00025B00A5A5")
+    private val MOTOBUDS_RFCOMM_UUID: UUID = UUID.fromString("fc9d9fe0-4899-11ee-be56-0242ac120002")
 
     private val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(p0: Context?, p1: Intent?) {
@@ -104,14 +108,10 @@ object RfcommController {
     }
 
     private fun changeUIAncStatus(status: Int) {
-        if (status < 1 || status > 8) return
         sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
-            if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
             this.putExtra("status", status)
         }
-        sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
-            putExtra("status", status)
-        }
+        saveState()
     }
 
     private fun changeUIBatteryStatus(status: BatteryParams) {
@@ -141,6 +141,28 @@ object RfcommController {
     private fun changeUIGameModeStatus(enabled: Boolean) {
         sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_GAME_MODE_CHANGED) {
             this.putExtra("enabled", enabled)
+        }
+        saveState()
+    }
+
+    private fun changeUIVolumeBoostStatus(enabled: Boolean) {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_VOLUME_BOOST_CHANGED) {
+            this.putExtra("enabled", enabled)
+        }
+        saveState()
+    }
+
+    private fun changeUIHiResModeStatus(enabled: Boolean) {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_HI_RES_MODE_CHANGED) {
+            this.putExtra("enabled", enabled)
+        }
+        saveState()
+    }
+
+    private fun saveState() {
+        mContext?.let { ctx ->
+            val prefs = ctx.getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE)
+            ConfigManager.saveLastState(prefs, currentAnc, currentGameMode, currentVolumeBoost, false)
         }
     }
 
@@ -189,6 +211,8 @@ object RfcommController {
                 changeUIAncStatus(currentAnc)
                 changeUISmartAncLevel(currentSmartAncLevel)
                 changeUIGameModeStatus(currentGameMode)
+                changeUIVolumeBoostStatus(currentVolumeBoost)
+                changeUIHiResModeStatus(false)
                 changeUITransparencyVocalEnhancementStatus(currentTransparencyVocalEnhancement)
                 changeUISpatialAudioStatus(currentSpatialAudioMode)
                 changeUIEqPreset(currentEqPreset)
@@ -218,6 +242,14 @@ object RfcommController {
             OppoPodsAction.ACTION_GAME_MODE_SET -> {
                 val enabled = intent.getBooleanExtra("enabled", false)
                 setGameMode(enabled)
+            }
+            OppoPodsAction.ACTION_VOLUME_BOOST_SET -> {
+                val enabled = intent.getBooleanExtra("enabled", false)
+                setVolumeBoost(enabled)
+            }
+            OppoPodsAction.ACTION_HI_RES_MODE_SET -> {
+                val enabled = intent.getBooleanExtra("enabled", false)
+                setHiResMode(enabled)
             }
             OppoPodsAction.ACTION_AUTO_GAME_MODE_CHANGED -> {
                 autoGameModeEnabled = intent.getBooleanExtra("enabled", autoGameModeEnabled)
@@ -349,14 +381,10 @@ object RfcommController {
     }
 
     private fun miuiAncLevel(anc: Int, transparencyVocalEnhancement: Boolean): String {
-        // MIUI level codes are not ordered like OPPO payloads:
-        // 0103=Smart, 0101=Light, 0100=Medium, 0102=Deep, 0201=Transparency vocal enhancement.
         return when (anc) {
-            5 -> "0103"
-            6 -> "0101"
-            7 -> "0100"
-            8 -> "0102"
-            3 -> if (transparencyVocalEnhancement) "0201" else "0200"
+            2 -> "0100"
+            3 -> "0200"
+            4 -> "0103"
             else -> "0000"
         }
     }
@@ -461,7 +489,7 @@ object RfcommController {
     }
 
     private fun createRfcommSocket(device: BluetoothDevice): BluetoothSocket {
-        return device.createRfcommSocketToServiceRecord(OPPO_RFCOMM_UUID)
+        return device.createRfcommSocketToServiceRecord(MOTOBUDS_RFCOMM_UUID)
     }
 
     fun connectPod(context: Context, device: BluetoothDevice, prefs: SharedPreferences, appRequested: Boolean = false) {
@@ -481,10 +509,14 @@ object RfcommController {
             mPrefs.getString(GameModeImplementation.PREF_KEY, null)
         )
         ConfigManager.refreshFromPrefs(mPrefs)
+        currentAnc = ConfigManager.getLastAncMode(mPrefs)
+        currentGameMode = ConfigManager.getLastGameMode(mPrefs)
+        currentVolumeBoost = ConfigManager.getLastVolumeBoost(mPrefs)
         Log.d(TAG, "Adaptive support initial: ${currentCapabilities().adaptiveSupported}")
         Log.d(TAG, "Auto game mode initial: $autoGameModeEnabled")
         Log.d(TAG, "Game mode implementation initial: ${gameModeImplementation.preferenceValue}")
-        Log.d(TAG, "RFCOMM UUID initial: $OPPO_RFCOMM_UUID")
+        Log.d(TAG, "RFCOMM UUID initial: $MOTOBUDS_RFCOMM_UUID")
+        Log.d(TAG, "Restored state: anc=$currentAnc game=$currentGameMode volume=$currentVolumeBoost")
 
         if (!receiverRegistered) {
             context.registerReceiver(broadcastReceiver, IntentFilter().apply {
@@ -596,22 +628,45 @@ object RfcommController {
             if (!isConnected || !::mDevice.isInitialized) return@launch
             closeSocketOnly()
             try {
-                val newSocket = createRfcommSocket(mDevice)
-                newSocket.connect()
-                socket = newSocket
+                // MotoBuds connection: try standard RFCOMM first, then insecure, then port 16
+                var connected = false
+                try {
+                    val newSocket = createRfcommSocket(mDevice)
+                    newSocket.connect()
+                    socket = newSocket
+                    connected = true
+                } catch (e: IOException) {
+                    Log.d(TAG, "Standard RFCOMM failed, trying insecure")
+                    try {
+                        val insecureSocket = mDevice.createInsecureRfcommSocketToServiceRecord(MOTOBUDS_RFCOMM_UUID)
+                        insecureSocket.connect()
+                        socket = insecureSocket
+                        connected = true
+                    } catch (e2: IOException) {
+                        Log.d(TAG, "Insecure RFCOMM failed, trying port 16")
+                        try {
+                            val method = mDevice.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                            val portSocket = method.invoke(mDevice, 16) as BluetoothSocket
+                            portSocket.connect()
+                            socket = portSocket
+                            connected = true
+                        } catch (e3: Exception) {
+                            Log.e(TAG, "All RFCOMM connection methods failed")
+                        }
+                    }
+                }
+
+                if (!connected) throw IOException("All connection methods failed")
+
                 reconnectAttempts.set(0)
                 reconnectPending = false
-                Log.d(TAG, "RFCOMM connected! uuid=$OPPO_RFCOMM_UUID")
-                RfcommLog.i(mContext, TAG, "connected uuid=$OPPO_RFCOMM_UUID")
+                Log.d(TAG, "RFCOMM connected! uuid=$MOTOBUDS_RFCOMM_UUID")
+                RfcommLog.i(mContext, TAG, "connected uuid=$MOTOBUDS_RFCOMM_UUID")
                 changeUIConnectionState("connecting")
 
-                startPacketReader(newSocket.inputStream)
+                startPacketReader(socket!!.inputStream)
 
                 delay(300)
-                // Ask the bud which notifications it can push; we subscribe to the
-                // advertised list (minus 0xFx debug channels) in handleOppoPacket.
-                sendPacketSafe(Enums.QUERY_NOTIFICATION_SUPPORT)
-                delay(50)
                 sendStatusQueryPackets(immediateReconnect = false)
 
                 if (autoGameModeEnabled) {
@@ -680,7 +735,7 @@ object RfcommController {
                     if (bytesRead > 0) {
                         val packet = buffer.copyOfRange(0, bytesRead)
                         RfcommLog.d(mContext, "RFCOMM/RX", packet.toHexString(HexFormat.UpperCase))
-                        handleOppoPacket(packet)
+                        handleMotoBudsPacket(packet)
                     } else if (bytesRead == -1) {
                         Log.d(TAG, "RFCOMM stream ended")
                         RfcommLog.w(mContext, TAG, "stream ended")
@@ -699,153 +754,145 @@ object RfcommController {
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    private fun handleOppoPacket(packet: ByteArray) {
+    private fun handleMotoBudsPacket(packet: ByteArray) {
         Log.v(TAG, "Received: ${packet.toHexString(HexFormat.UpperCase)}")
+        if (packet.size < 14) return
+        if (packet[0] != 0x48.toByte() || packet[1] != 0x45.toByte()) return
 
-        // Subscribe handshake: the bud replies to QUERY_NOTIFICATION_SUPPORT with the
-        // notification IDs it can push. Subscribe to all of them except the 0xFx debug
-        // channels (f1/f2/f3 push high-rate diagnostic frames that only add latency);
-        // id 0x03 in this list carries the smart-mode current-strength notify.
-        NotificationSupportParser.parse(packet)?.let { ids ->
-            val wanted = ids.filter { (it.toInt() and 0xFF) < 0xF0 }.toByteArray()
-            Log.d(TAG, "Notification ids advertised=${ids.toHexString(HexFormat.UpperCase)} subscribing=${wanted.toHexString(HexFormat.UpperCase)}")
-            CoroutineScope(Dispatchers.IO).launch {
-                sendPacketSafe(Enums.registerMultiNotification(wanted))
+        val opcode = ((packet[6].toInt() and 0xFF) shl 8) or (packet[7].toInt() and 0xFF)
+        val payloadLen = ((packet[10].toInt() and 0xFF) or ((packet[11].toInt() and 0xFF) shl 8))
+        val payload = if (payloadLen > 0 && packet.size >= 14 + payloadLen) {
+            packet.copyOfRange(14, 14 + payloadLen)
+        } else null
+
+        Log.d(TAG, "opcode=0x${opcode.toString(16)} payloadLen=$payloadLen")
+
+        when (opcode) {
+            // Battery (query response 0x005 or notification 0x009)
+            Cmd.GET_BATTERY_LEVEL, Cmd.BATTERY_LEVEL_CHANGED -> {
+                if (payload != null && payload.size >= 3) {
+                    val left = payload[0].toInt() and 0xFF
+                    val right = payload[1].toInt() and 0xFF
+                    val case = payload[2].toInt() and 0xFF
+                    val leftInfo = if (left != 0xFF) BatteryParser.BatteryInfo(left.coerceIn(0, 100), false) else null
+                    val rightInfo = if (right != 0xFF) BatteryParser.BatteryInfo(right.coerceIn(0, 100), false) else null
+                    val caseInfo = if (case != 0xFF) BatteryParser.BatteryInfo(case.coerceIn(0, 100), false) else null
+                    handleBatteryChanged(BatteryParser.BatteryResult(leftInfo, rightInfo, caseInfo))
+                }
             }
-            return
-        }
-
-        // Smart-mode current noise-reduction level (cmd 0x0204 type 03 key 04).
-        val smartLevel = SmartAncLevelParser.parse(packet)
-        if (smartLevel != null) {
-            Log.d(TAG, "Smart ANC current level: $smartLevel")
-            val ord = smartLevel.ordinal
-            if (ord != currentSmartAncLevel) {
-                currentSmartAncLevel = ord
-                changeUISmartAncLevel(ord)
+            // ANC mode (query response 0x200 or notification 0x204)
+            Cmd.GET_CURRENT_ANC_MODE, Cmd.ANC_MODE_CHANGED -> {
+                if (payload != null && payload.size >= 2) {
+                    val mode = payload[0].toInt() and 0xFF
+                    val subMode = payload[1].toInt() and 0xFF
+                    val ancMode = when (mode) {
+                        0x00 -> 1 // OFF
+                        0x01 -> if (subMode == 0x01) 4 else 2 // Adaptive or NC
+                        0x02 -> 3 // Transparency
+                        else -> currentAnc
+                    }
+                    if (ancMode != currentAnc) {
+                        Log.d(TAG, "ANC mode received: $ancMode (mode=$mode sub=$subMode)")
+                        currentAnc = ancMode
+                        changeUIAncStatus(currentAnc)
+                    }
+                }
             }
-            return
-        }
-
-        // Try parse as battery response (query response, Cmd=0x8106)
-        val batteryResult = BatteryParser.parse(packet)
-        if (batteryResult != null) {
-            handleBatteryChanged(batteryResult)
-            return
-        }
-
-        // Try parse as active battery report (unsolicited, Cmd=0x0204, type=0x01)
-        val activeResult = BatteryParser.parseActiveReport(packet)
-        if (activeResult != null) {
-            handleBatteryChanged(activeResult)
-            return
-        }
-
-        val wearResult = WearStatusParser.parse(packet)
-        if (wearResult != null) {
-            Log.d(TAG, "Wear status received: $wearResult")
-            val previousWearStatus = currentWearStatus
-            currentWearStatus = mergeWearStatus(currentWearStatus, wearResult)
-            changeUIWearStatus(currentWearStatus)
-            showIslandForWearStatusChange(previousWearStatus, currentWearStatus)
-            return
-        }
-
-        val spatialAudioResult = SpatialAudioParser.parseModeNotify(packet)
-        if (spatialAudioResult != null) {
-            Log.i(TAG, "Spatial audio mode notify: packet=${packet.toHexString(HexFormat.UpperCase)}, mode=$spatialAudioResult")
-            currentSpatialAudioMode = spatialAudioResult
-            changeUISpatialAudioStatus(spatialAudioResult)
-            return
-        }
-
-        val spatialAudioSetStatus = SpatialAudioParser.parseSetResponseStatus(packet)
-        if (spatialAudioSetStatus != null) {
-            Log.i(TAG, "Spatial audio set response: packet=${packet.toHexString(HexFormat.UpperCase)}, status=$spatialAudioSetStatus")
-            return
-        }
-
-        val spatialSoundSwitchEnabled = SpatialAudioParser.parseSpatialSoundSwitchSetResponse(packet)
-        if (spatialSoundSwitchEnabled != null) {
-            Log.i(TAG, "Spatial sound switch response: packet=${packet.toHexString(HexFormat.UpperCase)}, enabled=$spatialSoundSwitchEnabled")
-            currentSpatialAudioMode = if (spatialSoundSwitchEnabled) SpatialAudioMode.FIXED else SpatialAudioMode.OFF
-            changeUISpatialAudioStatus(currentSpatialAudioMode)
-            return
-        }
-
-        // EQ preset (handles both 0x0504 push notify and 0x810F query response)
-        val eqPresetResult = EqPresetParser.parse(packet)
-        if (eqPresetResult != null) {
-            Log.d(TAG, "EQ preset received: $eqPresetResult")
-            currentEqPreset = eqPresetResult
-            changeUIEqPreset(eqPresetResult)
-            return
-        }
-
-        // Try parse as ANC mode response
-        val ancResult = AncModeParser.parse(packet, currentCapabilities().ancImplementation)
-        if (ancResult != null) {
-            Log.d(TAG, "ANC mode received: $ancResult")
-            currentAnc = when (ancResult) {
-                NoiseControlMode.OFF -> 1
-                NoiseControlMode.NOISE_CANCELLATION -> 2
-                NoiseControlMode.NOISE_CANCELLATION_SMART -> 5
-                NoiseControlMode.NOISE_CANCELLATION_LIGHT -> 6
-                NoiseControlMode.NOISE_CANCELLATION_MEDIUM -> 7
-                NoiseControlMode.NOISE_CANCELLATION_DEEP -> 8
-                NoiseControlMode.TRANSPARENCY -> 3
-                NoiseControlMode.ADAPTIVE -> 4
+            // Game mode (notification 0x312)
+            Cmd.GAME_MODE_STATE_CHANGED -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val enabled = payload[0].toInt() == 0x01
+                    Log.d(TAG, "Game mode received: $enabled")
+                    currentGameMode = enabled
+                    changeUIGameModeStatus(enabled)
+                }
             }
-            changeUIAncStatus(currentAnc)
-
-            val transparencyVocalEnhancementResult = TransparencyVocalEnhancementParser.parse(packet)
-            if (transparencyVocalEnhancementResult != null) {
-                Log.d(TAG, "Transparency vocal enhancement received: $transparencyVocalEnhancementResult")
-                currentTransparencyVocalEnhancement = transparencyVocalEnhancementResult
-                changeUITransparencyVocalEnhancementStatus(transparencyVocalEnhancementResult)
+            // Game mode query response (0x30E)
+            Cmd.GET_GAME_MODE -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val enabled = payload[0].toInt() == 0x01
+                    Log.d(TAG, "Game mode query response: $enabled")
+                    currentGameMode = enabled
+                    changeUIGameModeStatus(enabled)
+                }
             }
-            return
-        }
-
-        val transparencyVocalEnhancementResult = TransparencyVocalEnhancementParser.parse(packet)
-        if (transparencyVocalEnhancementResult != null) {
-            Log.d(TAG, "Transparency vocal enhancement received: $transparencyVocalEnhancementResult")
-            currentTransparencyVocalEnhancement = transparencyVocalEnhancementResult
-            changeUITransparencyVocalEnhancementStatus(transparencyVocalEnhancementResult)
-            return
-        }
-
-        // Try parse as batch query response for switch features (Cmd=0x810D).
-        val switchFeatureStatus = GameModeParser.parseStatus(packet)
-        if (switchFeatureStatus != null) {
-            val gameModeResult = switchFeatureStatus.enabledFor(gameModeImplementation)
-            if (gameModeResult != null) {
-                Log.d(TAG, "Game mode received: $gameModeResult")
-                lastGameModeStatusUpdateMs = SystemClock.elapsedRealtime()
-                currentGameMode = gameModeResult
-                changeUIGameModeStatus(gameModeResult)
+            // Volume boost notification (0x315) or query response (0x313)
+            Cmd.VOLUME_BOOST_STATE_CHANGED, Cmd.GET_VOLUME_BOOST_STATE -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val enabled = payload[0].toInt() == 0x01
+                    Log.d(TAG, "Volume boost received: $enabled")
+                    currentVolumeBoost = enabled
+                    changeUIVolumeBoostStatus(enabled)
+                }
             }
-            val dualDeviceConnectionResult = switchFeatureStatus.dualDeviceConnectionEnabled
-            if (dualDeviceConnectionResult != null) {
-                Log.d(TAG, "Dual-device connection received: $dualDeviceConnectionResult")
-                currentDualDeviceConnection = dualDeviceConnectionResult
-                changeUIDualDeviceConnectionStatus(dualDeviceConnectionResult)
+            // Hi-res mode notification (0x311) or query response (0x30D)
+            Cmd.HI_RES_MODE_STATE_CHANGED, Cmd.GET_HI_RES_MODE -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val enabled = payload[0].toInt() == 0x01
+                    Log.d(TAG, "Hi-res mode received: $enabled")
+                    changeUIHiResModeStatus(enabled)
+                }
             }
-            return
-        }
-
-        val setFeatureResult = SwitchFeatureSetParser.parse(packet)
-        if (setFeatureResult != null) {
-            Log.d(TAG, "Switch feature response: status=${setFeatureResult.status}, value=${setFeatureResult.value}")
-            if (setFeatureResult.featureId == GameModeFeature.DUAL_DEVICE_CONNECTION && setFeatureResult.value != null) {
-                currentDualDeviceConnection = setFeatureResult.value == 0x01
-                changeUIDualDeviceConnectionStatus(currentDualDeviceConnection)
+            // Dual connection notification (0x40F) or query response (0x406)
+            Cmd.DUAL_CONNECTION_STATE_CHANGED, Cmd.GET_DUAL_CONNECTION_STATE -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val enabled = payload[0].toInt() == 0x01
+                    Log.d(TAG, "Dual connection received: $enabled")
+                    currentDualDeviceConnection = enabled
+                    changeUIDualDeviceConnectionStatus(enabled)
+                }
             }
-            return
+            // EQ preset query response (0x302) or notification (0x308)
+            Cmd.GET_EQ_SET, Cmd.EQ_SET_CHANGED -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val preset = payload[0].toInt() and 0xFF
+                    if (preset in EqPreset.ALL) {
+                        Log.d(TAG, "EQ preset received: $preset")
+                        currentEqPreset = preset
+                        changeUIEqPreset(preset)
+                    }
+                }
+            }
+            // Spatial audio notification (0x310) or query response (0x30A)
+            Cmd.SPATIAL_AUDIO_STATE_CHANGED, Cmd.GET_SPATIAL_AUDIO_STATE -> {
+                if (payload != null && payload.size >= 2) {
+                    val enabled = payload[0].toInt() == 0x01
+                    val headTracking = payload[1].toInt() == 0x01
+                    val mode = when {
+                        !enabled -> SpatialAudioMode.OFF
+                        headTracking -> SpatialAudioMode.HEAD_TRACKING
+                        else -> SpatialAudioMode.FIXED
+                    }
+                    Log.d(TAG, "Spatial audio received: mode=$mode")
+                    currentSpatialAudioMode = mode
+                    changeUISpatialAudioStatus(mode)
+                }
+            }
+            // In-ear status notification (0x404)
+            Cmd.IN_EAR_STATUS_CHANGED -> {
+                if (payload != null && payload.size >= 2) {
+                    currentInEarLeft = payload[0].toInt() != 0
+                    currentInEarRight = payload[1].toInt() != 0
+                    Log.d(TAG, "In-ear status: left=$currentInEarLeft right=$currentInEarRight")
+                }
+            }
+            // In-case status notification (0x40C)
+            Cmd.IN_CASE_STATUS_INDICATION -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    currentInCase = payload[0].toInt() != 0
+                    Log.d(TAG, "In-case status: $currentInCase")
+                }
+            }
+            // Toggle configs response (0x100)
+            Cmd.GET_TOGGLE_CONFIGS -> {
+                if (payload != null && payload.size >= 2) {
+                    Log.d(TAG, "Toggle configs: ${payload.toHexString(HexFormat.UpperCase)}")
+                }
+            }
+            else -> {
+                Log.d(TAG, "Unhandled opcode 0x${opcode.toString(16)}: ${packet.toHexString(HexFormat.UpperCase)}")
+            }
         }
-
-        // Unknown packet - log in debug
-        Log.d(TAG, "Unknown OPPO packet: ${packet.toHexString(HexFormat.UpperCase)}")
     }
 
     fun disconnectedPod(context: Context, device: BluetoothDevice) {
@@ -925,6 +972,33 @@ object RfcommController {
         }
     }
 
+    fun setVolumeBoost(enabled: Boolean) {
+        Log.d(TAG, "setVolumeBoost: $enabled")
+        currentVolumeBoost = enabled
+        changeUIVolumeBoostStatus(enabled)
+        val packet = if (enabled) Enums.VOLUME_BOOST_ON else Enums.VOLUME_BOOST_OFF
+        CoroutineScope(Dispatchers.IO).launch {
+            sendPacketSafe(packet, "volume boost control")
+            delay(350)
+            sendStatusQueryPackets(immediateReconnect = false)
+        }
+    }
+
+    fun setHiResMode(enabled: Boolean) {
+        Log.d(TAG, "setHiResMode: $enabled")
+        changeUIHiResModeStatus(enabled)
+        val payload = byteArrayOf(if (enabled) 0x01 else 0x00)
+        val packet = MotoBudsPackets.buildPacket(
+            opcode = Cmd.SET_HI_RES_MODE,
+            payload = payload
+        )
+        CoroutineScope(Dispatchers.IO).launch {
+            sendPacketSafe(packet, "hi-res mode control")
+            delay(350)
+            sendStatusQueryPackets(immediateReconnect = false)
+        }
+    }
+
     private suspend fun enableGameModeOnConnect() {
         delay(500)
         repeat(3) { attempt ->
@@ -956,19 +1030,9 @@ object RfcommController {
     }
 
     fun setTransparencyVocalEnhancement(enabled: Boolean) {
-        Log.d(TAG, "setTransparencyVocalEnhancement: $enabled")
+        Log.d(TAG, "setTransparencyVocalEnhancement: $enabled (no-op for MotoBuds)")
         currentTransparencyVocalEnhancement = enabled
         changeUITransparencyVocalEnhancementStatus(enabled)
-        val packet = if (enabled) {
-            Enums.TRANSPARENCY_VOCAL_ENHANCEMENT_ON
-        } else {
-            Enums.TRANSPARENCY_VOCAL_ENHANCEMENT_OFF
-        }
-        CoroutineScope(Dispatchers.IO).launch {
-            sendPacketSafe(packet, "transparency vocal enhancement control")
-            delay(350)
-            sendStatusQueryPackets(immediateReconnect = false)
-        }
     }
 
     fun setSpatialAudioMode(mode: Int) {
@@ -997,6 +1061,8 @@ object RfcommController {
         changeUIEqPreset(presetId)
         CoroutineScope(Dispatchers.IO).launch {
             sendPacketSafe(packet, "eq preset control")
+            delay(1000)
+            sendPacketSafe(Enums.QUERY_EQ, "eq confirm")
         }
     }
 
@@ -1007,6 +1073,8 @@ object RfcommController {
         changeUIDualDeviceConnectionStatus(enabled)
         CoroutineScope(Dispatchers.IO).launch {
             sendPacketSafe(packet, "dual-device connection control")
+            delay(1000)
+            sendPacketSafe(Enums.QUERY_DUAL_CONNECTION, "dual connection confirm")
         }
     }
 
@@ -1041,10 +1109,6 @@ object RfcommController {
             2 -> Enums.ANC_NOISE_CANCEL
             3 -> Enums.ANC_TRANSPARENCY
             4 -> Enums.ANC_ADAPTIVE
-            5 -> Enums.ANC_NOISE_CANCEL_SMART
-            6 -> Enums.ANC_NOISE_CANCEL_LIGHT
-            7 -> Enums.ANC_NOISE_CANCEL_MEDIUM
-            8 -> Enums.ANC_NOISE_CANCEL_DEEP
             else -> return
         }
         if (currentCapabilities().ancImplementation == AncImplementation.COMPATIBLE) {
@@ -1079,13 +1143,41 @@ object RfcommController {
 
     private suspend fun sendStatusQueryPackets(immediateReconnect: Boolean = true) {
         val reason = if (immediateReconnect) "status query" else null
-        sendPacketSafe(Enums.QUERY_STATUS, reason)
+        // Initial query (per protocol doc)
+        sendPacketSafe(Enums.QUERY_PROFILE_VERSION, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_SUPPORT_FEATURES, reason)
+        delay(50)
+        // Full status query (per protocol doc)
+        sendPacketSafe(Enums.QUERY_DEVICE_NAME, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_HARDWARE_INFO, reason)
         delay(50)
         sendPacketSafe(Enums.QUERY_BATTERY, reason)
         delay(50)
+        sendPacketSafe(Enums.QUERY_PRIMARY_EARBUD, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_CHANNEL_ID, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_EARBUDS_COLOR, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_SUPPORT_CONFIGS, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_TOGGLE_CONFIGS, reason)
+        delay(50)
         sendPacketSafe(Enums.QUERY_ANC, reason)
         delay(50)
+        sendPacketSafe(Enums.QUERY_ADAPTATION_STATUS, reason)
+        delay(50)
         sendPacketSafe(Enums.QUERY_EQ, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_EQ_SETS, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_GAME_MODE, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_VOLUME_BOOST, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_DUAL_CONNECTION, reason)
     }
 
     fun disconnectAudio(context: Context, device: BluetoothDevice?) {

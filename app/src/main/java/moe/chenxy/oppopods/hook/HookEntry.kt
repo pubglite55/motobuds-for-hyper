@@ -9,7 +9,7 @@ import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.hook.milink.MiLinkServiceHook
 
 class HookEntry : XposedModule() {
-    private val TAG = "OppoPods-HookEntry"
+    private val TAG = "MotoBuds-HookEntry"
     private val configListeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -35,7 +35,7 @@ class HookEntry : XposedModule() {
         hook.module = this
         hook.appClassLoader = classLoader
         hook.packageName = packageName
-        hook.prefs = getRemotePreferences("oppopods_settings")
+        hook.prefs = getRemotePreferences("motobuds_settings")
         Log.d(TAG, "loadHook package=$packageName hook=${hook.javaClass.simpleName}")
         ConfigManager.init(hook.prefs)
         val configListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->

@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.GameModeImplementation
 import moe.chenxy.oppopods.ui.AppLocale
@@ -59,6 +59,7 @@ fun SettingsPage(
         stringResource(R.string.language_system),
         stringResource(R.string.language_chinese),
         stringResource(R.string.language_english),
+        stringResource(R.string.language_japanese),
     )
     val logLevelValues = listOf(ConfigManager.LOG_LEVEL_OFF, ConfigManager.LOG_LEVEL_BASIC, ConfigManager.LOG_LEVEL_DEBUG)
     val logLevelOptions = listOf(

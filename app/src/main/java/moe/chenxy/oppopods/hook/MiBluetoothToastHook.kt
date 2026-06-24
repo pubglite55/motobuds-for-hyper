@@ -22,7 +22,7 @@ import moe.chenxy.oppopods.utils.SystemApisUtils.notifyAsUser
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
-import moe.chenxy.oppopods.R
+import moe.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.pods.detectDeviceCapabilities
 
 @SuppressLint("MissingPermission")
@@ -101,7 +101,7 @@ object MiBluetoothToastHook : HookContext() {
                 ancCycleIntent.setIdentifier("BTHeadset$address")
                 ancCycleIntent.putExtra("device_name", alias ?: bluetoothDevice.name ?: "")
                 val moduleContext = context.createPackageContext(
-                    "moe.chenxy.oppopods", Context.CONTEXT_IGNORE_SECURITY
+                    "moe.xiuxiu391.motobuds", Context.CONTEXT_IGNORE_SECURITY
                 )
                 val headsetBitmap = PodImageLoader.loadBoxBitmap(context, prefs, address)
                     ?: BitmapFactory.decodeResource(moduleContext.resources, R.drawable.img_box)
@@ -113,8 +113,8 @@ object MiBluetoothToastHook : HookContext() {
                 val pendingIntent = PendingIntent.getActivity(
                     context,
                     0,
-                    Intent("chen.action.oppopods.show_pods_ui").apply {
-                        setClassName("moe.chenxy.oppopods", "moe.chenxy.oppopods.PopupActivity")
+                    Intent("xiuxiu.action.motobuds.show_pods_ui").apply {
+                        setClassName("moe.xiuxiu391.motobuds", "moe.chenxy.oppopods.PopupActivity")
                         putExtra("android.bluetooth.device.extra.DEVICE", bluetoothDevice)
                         putExtra("bluetoothaddress", bluetoothDevice.address)
                         putExtra("device_name", alias)
@@ -245,20 +245,20 @@ object MiBluetoothToastHook : HookContext() {
 
                     val broadcastReceiver = object : BroadcastReceiver() {
                         override fun onReceive(p0: Context?, p1: Intent?) {
-                            if (p1?.action == "chen.action.oppopods.sendstrongtoast") {
+                            if (p1?.action == "xiuxiu.action.motobuds.sendstrongtoast") {
                                 if (ConfigManager.islandMode() != ConfigManager.ISLAND_MODE_MODULE) {
-                                    Log.d("OppoPods", "skip module island mode=${ConfigManager.islandMode()}")
+                                    Log.d("MotoBuds", "skip module island mode=${ConfigManager.islandMode()}")
                                     return
                                 }
                                 val batteryParams = p1.getParcelableExtra("batteryParams", BatteryParams::class.java)!!
                                 // Use Focus Island (HyperOS 3+) for battery display
                                 val address = p1.getStringExtra("address").orEmpty()
                                 FocusIslandUtil.showBatteryIsland(context, prefs, batteryParams, address)
-                            } else if (p1?.action == "chen.action.oppopods.updatepodsnotification") {
+                            } else if (p1?.action == "xiuxiu.action.motobuds.updatepodsnotification") {
                                 val batteryParams = p1.getParcelableExtra<BatteryParams>("batteryParams", BatteryParams::class.java)
                                 val device = p1.getParcelableExtra("device", BluetoothDevice::class.java)
                                 createPodsNotification(device, context, batteryParams!!)
-                            } else if (p1?.action == "chen.action.oppopods.cancelpodsnotification") {
+                            } else if (p1?.action == "xiuxiu.action.motobuds.cancelpodsnotification") {
                                 val device = p1.getParcelableExtra("device", BluetoothDevice::class.java) as BluetoothDevice
                                 cancelNotification(device, context)
                             } else if (p1?.action == OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
@@ -279,7 +279,7 @@ object MiBluetoothToastHook : HookContext() {
                                 } else {
                                     listOf(2, 3, 1)
                                 }
-                                val currentIndex = cycle.indexOf(if (localAncMode in 5..8) 2 else localAncMode)
+                                val currentIndex = cycle.indexOf(localAncMode)
                                 localAncMode = cycle[(currentIndex + 1).floorMod(cycle.size)]
                                 Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
                                     putExtra("status", localAncMode)
@@ -290,9 +290,9 @@ object MiBluetoothToastHook : HookContext() {
                         }
                     }
 
-                    val intentFilter = IntentFilter("chen.action.oppopods.sendstrongtoast")
-                    intentFilter.addAction("chen.action.oppopods.updatepodsnotification")
-                    intentFilter.addAction("chen.action.oppopods.cancelpodsnotification")
+                    val intentFilter = IntentFilter("xiuxiu.action.motobuds.sendstrongtoast")
+                    intentFilter.addAction("xiuxiu.action.motobuds.updatepodsnotification")
+                    intentFilter.addAction("xiuxiu.action.motobuds.cancelpodsnotification")
                     intentFilter.addAction(OppoPodsAction.ACTION_CYCLE_ANC)
                     // 监听耳机实际 ANC 状态变更广播，保持 localAncMode 与 RfcommController 同步
                     intentFilter.addAction(OppoPodsAction.ACTION_PODS_ANC_CHANGED)

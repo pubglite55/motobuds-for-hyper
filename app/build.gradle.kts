@@ -15,15 +15,15 @@ apksign {
 }
 
 android {
-    namespace = "moe.chenxy.oppopods"
+    namespace = "moe.xiuxiu391.motobuds"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "moe.chenxy.oppopods"
+        applicationId = "moe.xiuxiu391.motobuds"
         minSdk = 35
         targetSdk = 36
-        versionCode = 15
-        versionName = "2.0.7"
+        versionCode = 1
+        versionName = "1.0.0"
         buildConfigField("long", "BUILD_TIMESTAMP", System.currentTimeMillis().toString())
     }
 
