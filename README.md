@@ -13,6 +13,8 @@
 
 <br/>
 
+[English](README-EN.md) | **简体中文** | [日本語](README-jp.md)
+
 *一个让你的 Moto Buds 在小米生态中如鱼得水的 Xposed 模块*
 
 </div>
