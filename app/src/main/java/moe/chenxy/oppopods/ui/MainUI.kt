@@ -44,7 +44,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
 import moe.chenxy.oppopods.OppoPodsApp
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.config.PodImagePrefs
 import moe.chenxy.oppopods.config.PodImageResource

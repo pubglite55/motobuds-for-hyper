@@ -31,8 +31,8 @@ import io.github.libxposed.service.XposedService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import moe.xiuxiu391.motobuds.BuildConfig
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.BuildConfig
+import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.ui.components.AppIcons
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults

@@ -22,7 +22,7 @@ import moe.chenxy.oppopods.utils.SystemApisUtils.notifyAsUser
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.pods.detectDeviceCapabilities
 
 @SuppressLint("MissingPermission")
@@ -101,7 +101,7 @@ object MiBluetoothToastHook : HookContext() {
                 ancCycleIntent.setIdentifier("BTHeadset$address")
                 ancCycleIntent.putExtra("device_name", alias ?: bluetoothDevice.name ?: "")
                 val moduleContext = context.createPackageContext(
-                    "moe.xiuxiu391.motobuds", Context.CONTEXT_IGNORE_SECURITY
+                    "com.xiuxiu391.motobuds", Context.CONTEXT_IGNORE_SECURITY
                 )
                 val headsetBitmap = PodImageLoader.loadBoxBitmap(context, prefs, address)
                     ?: BitmapFactory.decodeResource(moduleContext.resources, R.drawable.img_box)
@@ -114,7 +114,7 @@ object MiBluetoothToastHook : HookContext() {
                     context,
                     0,
                     Intent("xiuxiu.action.motobuds.show_pods_ui").apply {
-                        setClassName("moe.xiuxiu391.motobuds", "moe.chenxy.oppopods.PopupActivity")
+                        setClassName("com.xiuxiu391.motobuds", "moe.chenxy.oppopods.PopupActivity")
                         putExtra("android.bluetooth.device.extra.DEVICE", bluetoothDevice)
                         putExtra("bluetoothaddress", bluetoothDevice.address)
                         putExtra("device_name", alias)

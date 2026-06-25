@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearStatus

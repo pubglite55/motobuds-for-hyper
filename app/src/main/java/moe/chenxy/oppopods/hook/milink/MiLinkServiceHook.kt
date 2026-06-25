@@ -6,7 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import moe.xiuxiu391.motobuds.BuildConfig
+import com.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.hook.HookContext
 import moe.chenxy.oppopods.hook.Log

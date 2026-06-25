@@ -10,7 +10,7 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Handler
-import moe.xiuxiu391.motobuds.BuildConfig
+import com.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.pods.RfcommController
 import moe.chenxy.oppopods.utils.SystemApisUtils.setIconVisibility
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction

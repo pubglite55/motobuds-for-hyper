@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.libxposed.service.XposedService
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.EarphonePref
 import moe.chenxy.oppopods.config.PodImageResource
 import moe.chenxy.oppopods.pods.GameModeImplementation

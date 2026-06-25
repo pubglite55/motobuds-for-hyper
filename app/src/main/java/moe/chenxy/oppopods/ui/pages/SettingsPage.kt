@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.GameModeImplementation
 import moe.chenxy.oppopods.ui.AppLocale
@@ -245,7 +245,7 @@ fun SettingsPage(
             Card(modifier = Modifier.padding(top = 12.dp)) {
                 BasicComponent(
                     title = stringResource(R.string.about),
-                    summary = "OppoPods-Enhanced",
+                    summary = "Motobuds for Hyper",
                     onClick = onOpenAbout
                 )
             }

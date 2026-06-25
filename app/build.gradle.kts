@@ -15,11 +15,11 @@ apksign {
 }
 
 android {
-    namespace = "moe.xiuxiu391.motobuds"
+    namespace = "com.xiuxiu391.motobuds"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "moe.xiuxiu391.motobuds"
+        applicationId = "com.xiuxiu391.motobuds"
         minSdk = 35
         targetSdk = 36
         versionCode = 1

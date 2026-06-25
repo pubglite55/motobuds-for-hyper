@@ -12,7 +12,7 @@ import android.os.Looper
 import android.os.Bundle
 import android.os.Parcel
 import java.lang.reflect.Method
-import moe.xiuxiu391.motobuds.BuildConfig
+import com.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.RfcommController
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams

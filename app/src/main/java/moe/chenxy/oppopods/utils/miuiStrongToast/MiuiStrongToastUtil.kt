@@ -12,7 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import kotlinx.serialization.json.Json
-import moe.xiuxiu391.motobuds.BuildConfig
+import com.xiuxiu391.motobuds.BuildConfig
 import moe.chenxy.oppopods.hook.Log
 import moe.chenxy.oppopods.utils.SystemApisUtils.isHyperOS
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams

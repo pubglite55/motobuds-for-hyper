@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import moe.xiuxiu391.motobuds.R
+import com.xiuxiu391.motobuds.R
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 
@@ -21,6 +21,14 @@ fun AboutPage(
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val context = LocalContext.current
+
+    fun openUrl(url: String) {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (_: Exception) {}
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -41,12 +49,7 @@ fun AboutPage(
                 BasicComponent(
                     title = "Motobuds for Hyper",
                     summary = "https://github.com/pubglite55/motobuds-for-hyper",
-                    onClick = {
-                        Intent(Intent.ACTION_VIEW).apply {
-                            this.data = Uri.parse("https://github.com/pubglite55/motobuds-for-hyper")
-                            context.startActivity(this)
-                        }
-                    }
+                    onClick = { openUrl("https://github.com/pubglite55/motobuds-for-hyper") }
                 )
             }
         }
@@ -54,27 +57,12 @@ fun AboutPage(
             Card {
                 BasicComponent(
                     title = stringResource(R.string.based_on),
-                    summary = "HyperPods by Art_Chen"
+                    summary = "OppoPods-Enhanced"
                 )
                 BasicComponent(
-                    title = "HyperPods",
-                    summary = "https://github.com/Art-Chen/HyperPods",
-                    onClick = {
-                        Intent(Intent.ACTION_VIEW).apply {
-                            this.data = Uri.parse("https://github.com/Art-Chen/HyperPods")
-                            context.startActivity(this)
-                        }
-                    }
-                )
-                BasicComponent(
-                    title = "Motobuds for Hyper",
-                    summary = "https://github.com/pubglite55/motobuds-for-hyper",
-                    onClick = {
-                        Intent(Intent.ACTION_VIEW).apply {
-                            this.data = Uri.parse("https://github.com/pubglite55/motobuds-for-hyper")
-                            context.startActivity(this)
-                        }
-                    }
+                    title = "OppoPods-Enhanced",
+                    summary = "https://github.com/1812z/OppoPods",
+                    onClick = { openUrl("https://github.com/1812z/OppoPods") }
                 )
             }
         }
