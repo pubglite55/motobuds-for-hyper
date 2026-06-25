@@ -137,7 +137,7 @@
 <td align="center"><img src="docs/微信图片_20260625080855_75_9.jpg" width="270" alt="快捷弹窗"/></td>
 </tr>
 <tr>
-<td align="center">超级岛集成</td>
+<td align="center">milink 仿造设备</td>
 <td align="center">快捷弹窗（深色模式）</td>
 </tr>
 </table>
