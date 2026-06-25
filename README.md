@@ -123,7 +123,24 @@
 
 ## 📸 截图
 
-> 截图即将添加...
+<table>
+<tr>
+<td align="center"><img src="docs/微信图片_20260625080850_72_9.jpg" width="270" alt="耳机主界面"/></td>
+<td align="center"><img src="docs/微信图片_20260625080851_73_9.jpg" width="270" alt="模块主页"/></td>
+</tr>
+<tr>
+<td align="center">耳机主界面</td>
+<td align="center">模块主页</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/微信图片_20260625080853_74_9.jpg" width="270" alt="超级岛"/></td>
+<td align="center"><img src="docs/微信图片_20260625080855_75_9.jpg" width="270" alt="快捷弹窗"/></td>
+</tr>
+<tr>
+<td align="center">超级岛集成</td>
+<td align="center">快捷弹窗（深色模式）</td>
+</tr>
+</table>
 
 ---
 
