@@ -139,4 +139,7 @@
     <string name="anc_intensity">ANC Intensity</string>
     <string name="volume_level">Volume Level</string>
     <string name="eq_bass">Bass Enhancement</string>
+    <string name="low_battery_reminder">Low Battery Reminder</string>
+    <string name="low_battery_reminder_summary">Notify when battery is below 20%</string>
+    <string name="low_battery_title">Low Battery Alert</string>
 </resources>

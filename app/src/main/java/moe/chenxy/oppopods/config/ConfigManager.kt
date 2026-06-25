@@ -38,6 +38,7 @@ object ConfigManager {
     const val PREF_KEY_LAST_GAME_MODE = "last_game_mode"
     const val PREF_KEY_LAST_VOLUME_BOOST = "last_volume_boost"
     const val PREF_KEY_LAST_HI_RES_MODE = "last_hi_res_mode"
+    const val PREF_KEY_LOW_BATTERY_REMINDER = "low_battery_reminder_enabled"
     const val DEFAULT_FAKE_DEVICE_ID = "01010607"
     const val LOG_LEVEL_OFF = 0
     const val LOG_LEVEL_BASIC = 1

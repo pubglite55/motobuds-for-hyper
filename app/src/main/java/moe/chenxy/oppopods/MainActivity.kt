@@ -1,6 +1,7 @@
 package moe.chenxy.oppopods
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,6 +15,7 @@ import androidx.compose.runtime.remember
 import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.ui.App
 import moe.chenxy.oppopods.ui.AppLocale
+import moe.chenxy.oppopods.ui.guide.GuideActivity
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
@@ -24,6 +26,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val prefs = getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean("first_launch", true)) {
+            startActivity(Intent(this, GuideActivity::class.java))
+            finish()
+            return
+        }
 
         setContent {
             val prefs = remember { getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE) }

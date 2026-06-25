@@ -24,6 +24,7 @@ import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.utils.MediaControl
 import moe.chenxy.oppopods.utils.SystemApisUtils
 import moe.chenxy.oppopods.utils.SystemApisUtils.setIconVisibility
+import moe.chenxy.oppopods.utils.BatteryNotificationHelper
 import moe.chenxy.oppopods.utils.miuiStrongToast.MiuiStrongToastUtil
 import moe.chenxy.oppopods.utils.miuiStrongToast.MiuiStrongToastUtil.cancelPodsNotificationByMiuiBt
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
@@ -433,6 +434,16 @@ object RfcommController {
 
         val batteryParams = BatteryParams(left, right, case)
         currentBatteryParams = batteryParams
+
+        // Check low battery
+        mContext?.let { ctx ->
+            BatteryNotificationHelper.checkAndNotify(
+                ctx,
+                left.battery,
+                right.battery,
+                case.battery
+            )
+        }
 
         if (shouldShowToast) {
             changeUIConnectionState("connected")

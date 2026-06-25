@@ -135,4 +135,7 @@
     <string name="anc_implementation_summary">自动时跟随型号检测；部分老耳机降噪/关闭指令相反，可手动切换。</string>
     <string name="anc_implementation_standard">标准</string>
     <string name="anc_implementation_compatible">兼容</string>
+    <string name="low_battery_reminder">低电量提醒</string>
+    <string name="low_battery_reminder_summary">电量低于20%时通知提醒</string>
+    <string name="low_battery_title">低电量提醒</string>
 </resources>

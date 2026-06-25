@@ -52,6 +52,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <activity android:name="moe.chenxy.oppopods.ui.guide.GuideActivity"
+            android:theme="@style/Theme.MotoBuds"
+            android:exported="false" />
         <provider
             android:name="moe.chenxy.oppopods.config.PodImageProvider"
             android:authorities="moe.xiuxiu391.motobuds.podimages"

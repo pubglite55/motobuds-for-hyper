@@ -134,4 +134,7 @@
     <string name="anc_implementation_summary">自動ではモデル検出に従います。ANC動作の互換性のために手動で切り替え可能です。</string>
     <string name="anc_implementation_standard">標準</string>
     <string name="anc_implementation_compatible">互換</string>
+    <string name="low_battery_reminder">低バッテリー通知</string>
+    <string name="low_battery_reminder_summary">バッテリーが20%以下になると通知</string>
+    <string name="low_battery_title">低バッテリー警告</string>
 </resources>

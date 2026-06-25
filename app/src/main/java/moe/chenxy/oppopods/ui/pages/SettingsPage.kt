@@ -53,7 +53,9 @@ fun SettingsPage(
     fakeDeviceId: MutableState<String> = mutableStateOf(ConfigManager.DEFAULT_FAKE_DEVICE_ID),
     onFakeDeviceIdChange: (String) -> Unit = {},
     onOpenTheme: () -> Unit = {},
-    onOpenAbout: () -> Unit = {}
+    onOpenAbout: () -> Unit = {},
+    lowBatteryReminder: MutableState<Boolean> = mutableStateOf(true),
+    onLowBatteryReminderChange: (Boolean) -> Unit = {}
 ) {
     val languageOptions = listOf(
         stringResource(R.string.language_system),
@@ -227,6 +229,22 @@ fun SettingsPage(
                         onSelectedIndexChange = { onMoreClickActionChange(moreClickActionValues[it]) }
                     )
                 }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.padding(top = 12.dp)) {
+                SwitchPreference(
+                    title = stringResource(R.string.low_battery_reminder),
+                    summary = stringResource(R.string.low_battery_reminder_summary),
+                    checked = lowBatteryReminder.value,
+                    onCheckedChange = { onLowBatteryReminderChange(it) }
+                )
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.padding(top = 12.dp)) {
                 BasicComponent(
                     title = stringResource(R.string.fake_device_id),
                     summary = stringResource(R.string.fake_device_id_summary)
