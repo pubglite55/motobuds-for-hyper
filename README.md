@@ -130,7 +130,7 @@
 <table>
 <tr>
 <td align="center"><img src="docs/微信图片_20260625080850_72_9.jpg" width="270" alt="耳机主界面"/></td>
-<td align="center"><img src="docs/微信图片_20260625080851_73_9.jpg" width="270" alt="模块主页"/></td>
+<td align="center"><img src="docs/微信图片_20260625083102_77_9.jpg" width="270" alt="模块主页"/></td>
 </tr>
 <tr>
 <td align="center">耳机主界面</td>

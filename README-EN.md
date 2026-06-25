@@ -130,7 +130,7 @@ Direct earphone control in system settings with **multi-device one-tap handoff**
 <table>
 <tr>
 <td align="center"><img src="docs/微信图片_20260625080850_72_9.jpg" width="270" alt="Earphones Page"/></td>
-<td align="center"><img src="docs/微信图片_20260625080851_73_9.jpg" width="270" alt="Module Page"/></td>
+<td align="center"><img src="docs/微信图片_20260625083102_77_9.jpg" width="270" alt="Module Page"/></td>
 </tr>
 <tr>
 <td align="center">Earphones Page</td>
