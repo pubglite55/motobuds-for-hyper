@@ -1,7 +1,7 @@
 
 <div align="center">
 
-<img src="https://github.com/user-attachments/assets/e8a3df6b-6e67-485a-ae1c-018ac24e87d4" width="120" height="120" style="border-radius: 24px;" alt="MotoBuds Icon"/>
+<img src="docs/icon.jpg" width="120" height="120" style="border-radius: 24px;" alt="MotoBuds Icon"/>
 
 # MotoBuds
 
