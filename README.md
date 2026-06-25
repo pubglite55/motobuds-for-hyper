@@ -119,6 +119,8 @@
 | 📱 融合设备中心 | 系统设置集成 | ✅ |
 | 🔄 设备流转 | 多设备一键切换 | ✅ |
 
+> **💡 提示：** 切换降噪模式时，若回弹为自适应模式，请先在官方 `com.motorola.motobuds` APP 中创建个人适配后即可正常使用。
+
 ---
 
 ## 📸 截图
@@ -138,7 +140,7 @@
 </tr>
 <tr>
 <td align="center">milink 仿造设备</td>
-<td align="center">快捷弹窗（深色模式）</td>
+<td align="center">快捷弹窗</td>
 </tr>
 </table>
 
