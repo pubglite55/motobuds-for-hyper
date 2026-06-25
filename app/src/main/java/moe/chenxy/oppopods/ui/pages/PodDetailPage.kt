@@ -280,51 +280,6 @@ private fun LazyListScope.podControlItems(
 
     item {
         Card(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
-        ) {
-            GlassSliderCard(
-                title = "降噪强度",
-                value = ancIntensity,
-                onValueChange = onAncIntensityChange,
-                valueRange = 0f..1f,
-                steps = 99,
-                valueFormatter = { "%.0f%%".format(it * 100) }
-            )
-        }
-    }
-
-    item {
-        Card(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
-        ) {
-            GlassSliderCard(
-                title = "音量增强",
-                value = volumeLevel,
-                onValueChange = onVolumeLevelChange,
-                valueRange = 0f..1f,
-                steps = 99,
-                valueFormatter = { "%.0f%%".format(it * 100) }
-            )
-        }
-    }
-
-    item {
-        Card(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
-        ) {
-            GlassSliderCard(
-                title = "低音增强",
-                value = eqBass,
-                onValueChange = onEqBassChange,
-                valueRange = 0f..1f,
-                steps = 99,
-                valueFormatter = { "%.0f%%".format(it * 100) }
-            )
-        }
-    }
-
-    item {
-        Card(
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
             SwitchPreference(

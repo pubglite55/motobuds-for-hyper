@@ -23,12 +23,8 @@ fun ThemeSettingsPage(
     onThemeModeChange: (Int) -> Unit = {},
     accentMode: MutableState<Int> = mutableStateOf(0),
     onAccentModeChange: (Int) -> Unit = {},
-    floatingBottomBar: MutableState<Boolean> = mutableStateOf(false),
+    floatingBottomBar: MutableState<Boolean> = mutableStateOf(true),
     onFloatingBottomBarChange: (Boolean) -> Unit = {},
-    blurBottomBar: MutableState<Boolean> = mutableStateOf(false),
-    onBlurBottomBarChange: (Boolean) -> Unit = {},
-    liquidGlassEnabled: MutableState<Boolean> = mutableStateOf(false),
-    onLiquidGlassChange: (Boolean) -> Unit = {},
 ) {
     val themeOptions = listOf(
         stringResource(R.string.theme_follow_system),
@@ -70,36 +66,13 @@ fun ThemeSettingsPage(
         }
 
         item {
-            Card(
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
+            Card(modifier = Modifier.padding(top = 12.dp)) {
                 SwitchPreference(
-                    title = stringResource(R.string.liquid_glass),
-                    summary = stringResource(R.string.liquid_glass_summary),
-                    checked = liquidGlassEnabled.value,
-                    onCheckedChange = { onLiquidGlassChange(it) },
+                    title = stringResource(R.string.floating_bottom_bar),
+                    summary = stringResource(R.string.floating_bottom_bar_summary),
+                    checked = floatingBottomBar.value,
+                    onCheckedChange = { onFloatingBottomBarChange(it) },
                 )
-            }
-        }
-
-        if (liquidGlassEnabled.value) {
-            item {
-                Card(
-                    modifier = Modifier.padding(top = 12.dp)
-                ) {
-                    SwitchPreference(
-                        title = stringResource(R.string.floating_bottom_bar),
-                        summary = stringResource(R.string.floating_bottom_bar_summary),
-                        checked = floatingBottomBar.value,
-                        onCheckedChange = { onFloatingBottomBarChange(it) },
-                    )
-                    SwitchPreference(
-                        title = stringResource(R.string.blur_bottom_bar),
-                        summary = stringResource(R.string.blur_bottom_bar_summary),
-                        checked = blurBottomBar.value,
-                        onCheckedChange = { onBlurBottomBarChange(it) },
-                    )
-                }
             }
         }
     }

@@ -85,8 +85,6 @@
     <string name="color_monet">ダイナミックカラー</string>
     <string name="floating_bottom_bar">フローティングボトムバー</string>
     <string name="floating_bottom_bar_summary">ボトムナビゲーションを画面端の上に浮かせる</string>
-    <string name="blur_bottom_bar">ボトムバーをぼかす</string>
-    <string name="blur_bottom_bar_summary">半透明のボトムナビゲーション背景を使用</string>
     <string name="language">言語</string>
     <string name="language_summary">アプリの表示言語を切り替え</string>
     <string name="language_system">システムに従う</string>
@@ -137,4 +135,6 @@
     <string name="low_battery_reminder">低バッテリー通知</string>
     <string name="low_battery_reminder_summary">バッテリーが20%以下になると通知</string>
     <string name="low_battery_title">低バッテリー警告</string>
+    <string name="auto_reconnect">自動再接続</string>
+    <string name="auto_reconnect_summary">ヘッドセットの切断後、自動的に再接続</string>
 </resources>

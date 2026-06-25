@@ -10,7 +10,7 @@
 [![Framework](https://img.shields.io/badge/Framework-LSPosed-blueviolet?style=for-the-badge&logo=github)](https://github.com/LSPosed/LSPosed)
 [![ROM](https://img.shields.io/badge/ROM-HyperOS%203-orange?style=for-the-badge&logo=xiaomi)](https://hyperos.mi.com)
 [![License](https://img.shields.io/badge/License-GPL--3.0-red?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
 
 <br/>
 
@@ -160,6 +160,9 @@ A: Ensure stable Bluetooth connection. The module auto-syncs status every 15 sec
 | 🎯 Quick Popup | Notification/control center popup | ✅ |
 | ⚙️ System Settings | Control in Bluetooth settings | ✅ |
 | 🌐 Multi-language | Chinese/English/Japanese | ✅ |
+| 🔋 Low Battery Alert | Notify when battery below 20% | ✅ |
+| 🔄 Auto Reconnect | Auto-reconnect when earphone disconnects | ✅ |
+| 📖 First-time Guide | Feature introduction on first launch | ✅ |
 
 > **💡 Tip:** When switching ANC mode, if it reverts to Adaptive mode, please create a personal adaptation in the official `com.motorola.motobuds` app first.
 

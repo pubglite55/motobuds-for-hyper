@@ -55,7 +55,9 @@ fun SettingsPage(
     onOpenTheme: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     lowBatteryReminder: MutableState<Boolean> = mutableStateOf(true),
-    onLowBatteryReminderChange: (Boolean) -> Unit = {}
+    onLowBatteryReminderChange: (Boolean) -> Unit = {},
+    autoReconnect: MutableState<Boolean> = mutableStateOf(true),
+    onAutoReconnectChange: (Boolean) -> Unit = {},
 ) {
     val languageOptions = listOf(
         stringResource(R.string.language_system),
@@ -239,6 +241,12 @@ fun SettingsPage(
                     summary = stringResource(R.string.low_battery_reminder_summary),
                     checked = lowBatteryReminder.value,
                     onCheckedChange = { onLowBatteryReminderChange(it) }
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.auto_reconnect),
+                    summary = stringResource(R.string.auto_reconnect_summary),
+                    checked = autoReconnect.value,
+                    onCheckedChange = { onAutoReconnectChange(it) }
                 )
             }
         }

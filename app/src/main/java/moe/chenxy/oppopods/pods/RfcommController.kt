@@ -691,8 +691,24 @@ object RfcommController {
         }
     }
 
+    private fun isAutoReconnectEnabled(): Boolean {
+        return try {
+            mPrefs.getBoolean(ConfigManager.PREF_KEY_AUTO_RECONNECT, true)
+        } catch (_: Exception) {
+            true
+        }
+    }
+
     private fun scheduleReconnect(reason: String, immediate: Boolean = false) {
         if (!isConnected || !::mDevice.isInitialized || mContext == null) return
+        if (!isAutoReconnectEnabled() && !immediate) {
+            Log.d(TAG, "auto-reconnect disabled, skipping reconnect for reason=$reason")
+            RfcommLog.w(mContext, TAG, "auto-reconnect disabled, skip reason=$reason")
+            closeSocketOnly()
+            reconnectPending = false
+            changeUIConnectionState("disconnected")
+            return
+        }
         RfcommLog.w(mContext, TAG, "schedule reconnect reason=$reason immediate=$immediate")
         closeSocketOnly()
         reconnectPending = true

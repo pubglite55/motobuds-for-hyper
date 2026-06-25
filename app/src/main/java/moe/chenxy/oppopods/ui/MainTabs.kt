@@ -137,6 +137,10 @@ internal fun MainTabsScaffold(
     onFakeDeviceIdChange: (String) -> Unit,
     onOpenTheme: () -> Unit,
     onOpenAbout: () -> Unit,
+    lowBatteryReminder: MutableState<Boolean>,
+    onLowBatteryReminderChange: (Boolean) -> Unit,
+    autoReconnect: MutableState<Boolean>,
+    onAutoReconnectChange: (Boolean) -> Unit,
     showRestartScopeDialog: Boolean,
     restartingScopes: Boolean,
     onShowRestartScopeDialog: () -> Unit,
@@ -294,6 +298,10 @@ internal fun MainTabsScaffold(
                         onFakeDeviceIdChange = onFakeDeviceIdChange,
                         onOpenTheme = onOpenTheme,
                         onOpenAbout = onOpenAbout,
+                        lowBatteryReminder = lowBatteryReminder,
+                        onLowBatteryReminderChange = onLowBatteryReminderChange,
+                        autoReconnect = autoReconnect,
+                        onAutoReconnectChange = onAutoReconnectChange,
                     )
                 }
             }
@@ -516,6 +524,10 @@ private fun SettingsTabPage(
     onFakeDeviceIdChange: (String) -> Unit,
     onOpenTheme: () -> Unit,
     onOpenAbout: () -> Unit,
+    lowBatteryReminder: MutableState<Boolean>,
+    onLowBatteryReminderChange: (Boolean) -> Unit,
+    autoReconnect: MutableState<Boolean>,
+    onAutoReconnectChange: (Boolean) -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -561,6 +573,10 @@ private fun SettingsTabPage(
             onFakeDeviceIdChange = onFakeDeviceIdChange,
             onOpenTheme = onOpenTheme,
             onOpenAbout = onOpenAbout,
+            lowBatteryReminder = lowBatteryReminder,
+            onLowBatteryReminderChange = onLowBatteryReminderChange,
+            autoReconnect = autoReconnect,
+            onAutoReconnectChange = onAutoReconnectChange,
         )
     }
 }

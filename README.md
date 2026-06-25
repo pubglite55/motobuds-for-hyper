@@ -10,7 +10,7 @@
 [![Framework](https://img.shields.io/badge/Framework-LSPosed-blueviolet?style=for-the-badge&logo=github)](https://github.com/LSPosed/LSPosed)
 [![ROM](https://img.shields.io/badge/ROM-HyperOS%203-orange?style=for-the-badge&logo=xiaomi)](https://hyperos.mi.com)
 [![License](https://img.shields.io/badge/License-GPL--3.0-red?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
 
 <br/>
 
@@ -160,6 +160,9 @@ A: 请确保蓝牙连接稳定，模块会自动每 15 秒同步状态。
 | 🎯 快捷弹窗 | 通知/控制中心弹出控制 | ✅ |
 | ⚙️ 系统设置 | 蓝牙设置中控制耳机 | ✅ |
 | 🌐 多语言 | 中文/英文/日文 | ✅ |
+| 🔋 低电量提醒 | 电量低于20%时通知 | ✅ |
+| 🔄 自动重连 | 耳机断开后自动重新连接 | ✅ |
+| 📖 首次引导 | 首次启动时显示功能介绍 | ✅ |
 
 > **💡 温馨提示：** 切换降噪模式时，若回弹为自适应模式，请先在官方 `com.motorola.motobuds` APP 中创建个人适配后即可正常使用。
 

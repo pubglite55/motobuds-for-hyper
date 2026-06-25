@@ -86,8 +86,6 @@
     <string name="color_monet">动态取色</string>
     <string name="floating_bottom_bar">悬浮底栏</string>
     <string name="floating_bottom_bar_summary">让底部导航栏悬浮在屏幕边缘上方</string>
-    <string name="blur_bottom_bar">底栏模糊</string>
-    <string name="blur_bottom_bar_summary">使用半透明底部导航背景</string>
     <string name="language">语言</string>
     <string name="language_summary">切换应用显示语言</string>
     <string name="language_system">跟随系统</string>
@@ -138,4 +136,6 @@
     <string name="low_battery_reminder">低电量提醒</string>
     <string name="low_battery_reminder_summary">电量低于20%时通知提醒</string>
     <string name="low_battery_title">低电量提醒</string>
+    <string name="auto_reconnect">自动重连</string>
+    <string name="auto_reconnect_summary">耳机断开后自动重新连接</string>
 </resources>

@@ -1,12 +1,21 @@
 package moe.chenxy.oppopods.ui
 
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -31,7 +40,7 @@ internal fun MainBottomNavigation(
     val barModifier = if (blur && backdrop != null) {
         Modifier.textureBlur(
             backdrop = backdrop,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(if (floating) 50.dp else 0.dp),
+            shape = RoundedCornerShape(if (floating) 50.dp else 0.dp),
         )
     } else {
         Modifier
@@ -39,18 +48,21 @@ internal fun MainBottomNavigation(
 
     val glassModifier = if (liquidGlassEnabled) {
         Modifier
-            .graphicsLayer {
-                renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                    20f, 20f, android.graphics.Shader.TileMode.CLAMP
-                ).asComposeRenderEffect()
-            }
+            .clip(RoundedCornerShape(40.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.05f),
+                    )
+                )
+            )
             .drawWithContent {
                 drawContent()
-                drawRect(color = Color.White.copy(alpha = 0.10f))
                 drawRect(
-                    color = Color.White.copy(alpha = 0.18f),
-                    topLeft = androidx.compose.ui.geometry.Offset(0f, 0f),
-                    size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()),
+                    color = Color.White.copy(alpha = 0.12f),
+                    topLeft = Offset(0f, 0f),
+                    size = Size(size.width, 1.dp.toPx()),
                 )
             }
     } else {
@@ -61,15 +73,29 @@ internal fun MainBottomNavigation(
         FloatingNavigationBar(
             modifier = barModifier
                 .zIndex(2f)
-                .then(glassModifier),
+                .then(glassModifier)
+                .then(if (liquidGlassEnabled) Modifier.height(72.dp).padding(horizontal = 16.dp) else Modifier),
             color = if (blur) Color.Transparent else MiuixTheme.colorScheme.surfaceContainer,
         ) {
             tabs.forEach { tab ->
+                val isSelected = selectedTab == tab
+                val scale by animateFloatAsState(
+                    targetValue = if (isSelected && liquidGlassEnabled) 1.15f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = 0.4f,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "itemScale"
+                )
                 FloatingNavigationBarItem(
-                    selected = selectedTab == tab,
+                    selected = isSelected,
                     onClick = { onTabClick(tab) },
                     icon = tab.icon,
                     label = tab.title(),
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    },
                 )
             }
         }

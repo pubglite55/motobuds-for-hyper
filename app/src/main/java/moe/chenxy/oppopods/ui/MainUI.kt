@@ -94,11 +94,11 @@ fun MainUI(
     onThemeModeChange: (Int) -> Unit = {},
     accentMode: MutableState<Int> = mutableStateOf(0),
     onAccentModeChange: (Int) -> Unit = {},
-    floatingBottomBar: MutableState<Boolean> = mutableStateOf(false),
+    floatingBottomBar: MutableState<Boolean> = mutableStateOf(true),
     onFloatingBottomBarChange: (Boolean) -> Unit = {},
-    blurBottomBar: MutableState<Boolean> = mutableStateOf(false),
+    blurBottomBar: MutableState<Boolean> = mutableStateOf(true),
     onBlurBottomBarChange: (Boolean) -> Unit = {},
-    liquidGlassEnabled: MutableState<Boolean> = mutableStateOf(false),
+    liquidGlassEnabled: MutableState<Boolean> = mutableStateOf(true),
     onLiquidGlassChange: (Boolean) -> Unit = {},
     appLanguage: MutableState<Int> = mutableStateOf(AppLocale.SYSTEM),
     onAppLanguageChange: (Int) -> Unit = {},
@@ -135,7 +135,7 @@ fun MainUI(
     var bluetoothServiceResponsive by remember { mutableStateOf(false) }
     val backgroundColor = appBackground()
     val overlayBottomBar = floatingBottomBar.value || blurBottomBar.value
-    val pageBottomContentPadding = if (overlayBottomBar) 104.dp else 28.dp
+    val pageBottomContentPadding = if (overlayBottomBar) 120.dp else 28.dp
     val backdrop = if (blurBottomBar.value) {
         rememberLayerBackdrop {
             drawRect(backgroundColor)
@@ -149,6 +149,8 @@ fun MainUI(
     val prefs = remember { context.getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE) }
     val appConfig = remember { ConfigManager.refreshFromPrefs(prefs) }
     val autoGameMode = remember { mutableStateOf(prefs.getBoolean("auto_game_mode", false)) }
+    val autoReconnect = remember { mutableStateOf(prefs.getBoolean(ConfigManager.PREF_KEY_AUTO_RECONNECT, true)) }
+    val lowBatteryReminder = remember { mutableStateOf(prefs.getBoolean(ConfigManager.PREF_KEY_LOW_BATTERY_REMINDER, true)) }
     val gameModeImplementation = remember {
         mutableStateOf(
             GameModeImplementation.fromPreference(
@@ -774,6 +776,22 @@ fun MainUI(
                 },
                 onOpenTheme = { backStack.add(Screen.Theme) },
                 onOpenAbout = { backStack.add(Screen.About) },
+                lowBatteryReminder = lowBatteryReminder,
+                onLowBatteryReminderChange = {
+                    lowBatteryReminder.value = it
+                    prefs.edit().putBoolean(ConfigManager.PREF_KEY_LOW_BATTERY_REMINDER, it).apply()
+                    xposedService?.getRemotePreferences(ConfigManager.PREFS_NAME)
+                        ?.edit()?.putBoolean(ConfigManager.PREF_KEY_LOW_BATTERY_REMINDER, it)?.apply()
+                    broadcastConfigChanged(context, "com.android.bluetooth")
+                },
+                autoReconnect = autoReconnect,
+                onAutoReconnectChange = {
+                    autoReconnect.value = it
+                    prefs.edit().putBoolean(ConfigManager.PREF_KEY_AUTO_RECONNECT, it).apply()
+                    xposedService?.getRemotePreferences(ConfigManager.PREFS_NAME)
+                        ?.edit()?.putBoolean(ConfigManager.PREF_KEY_AUTO_RECONNECT, it)?.apply()
+                    broadcastConfigChanged(context, "com.android.bluetooth")
+                },
                 showRestartScopeDialog = showRestartScopeDialog,
                 restartingScopes = restartingScopes,
                 onShowRestartScopeDialog = { showRestartScopeDialog = true },
@@ -852,11 +870,9 @@ fun MainUI(
                         accentMode = accentMode,
                         onAccentModeChange = onAccentModeChange,
                         floatingBottomBar = floatingBottomBar,
-                        onFloatingBottomBarChange = onFloatingBottomBarChange,
-                        blurBottomBar = blurBottomBar,
-                        onBlurBottomBarChange = onBlurBottomBarChange,
-                        liquidGlassEnabled = liquidGlassEnabled,
-                        onLiquidGlassChange = onLiquidGlassChange,
+                        onFloatingBottomBarChange = {
+                            floatingBottomBar.value = it
+                        },
                     )
                 }
             }

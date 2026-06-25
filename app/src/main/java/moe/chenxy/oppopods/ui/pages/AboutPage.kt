@@ -69,11 +69,6 @@ fun AboutPage(
                     summary = "https://github.com/Art-Chen/HyperPods",
                     onClick = { openUrl("https://github.com/Art-Chen/HyperPods") }
                 )
-                BasicComponent(
-                    title = "LiquidGlass",
-                    summary = "https://github.com/QmDeve/AndroidLiquidGlassView",
-                    onClick = { openUrl("https://github.com/QmDeve/AndroidLiquidGlassView") }
-                )
             }
         }
     }
