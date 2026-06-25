@@ -66,6 +66,7 @@ internal fun MainTabsScaffold(
     onTabSelected: (MainTab) -> Unit,
     floatingBottomBar: Boolean,
     blurBottomBar: Boolean,
+    liquidGlassEnabled: Boolean = false,
     backdrop: LayerBackdrop?,
     backgroundColor: Color,
     overlayBottomBar: Boolean,
@@ -192,6 +193,7 @@ internal fun MainTabsScaffold(
                     mainPagerState.animateToPage(it.ordinal)
                     onTabSelected(it)
                 },
+                liquidGlassEnabled = liquidGlassEnabled,
             )
         }
     ) { padding ->

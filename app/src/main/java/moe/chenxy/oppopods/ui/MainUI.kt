@@ -98,6 +98,8 @@ fun MainUI(
     onFloatingBottomBarChange: (Boolean) -> Unit = {},
     blurBottomBar: MutableState<Boolean> = mutableStateOf(false),
     onBlurBottomBarChange: (Boolean) -> Unit = {},
+    liquidGlassEnabled: MutableState<Boolean> = mutableStateOf(false),
+    onLiquidGlassChange: (Boolean) -> Unit = {},
     appLanguage: MutableState<Int> = mutableStateOf(AppLocale.SYSTEM),
     onAppLanguageChange: (Int) -> Unit = {},
 ) {
@@ -646,6 +648,7 @@ fun MainUI(
                 onTabSelected = { selectedTab = it },
                 floatingBottomBar = floatingBottomBar.value,
                 blurBottomBar = blurBottomBar.value,
+                liquidGlassEnabled = liquidGlassEnabled.value,
                 backdrop = backdrop,
                 backgroundColor = backgroundColor,
                 overlayBottomBar = overlayBottomBar,
@@ -852,6 +855,8 @@ fun MainUI(
                         onFloatingBottomBarChange = onFloatingBottomBarChange,
                         blurBottomBar = blurBottomBar,
                         onBlurBottomBarChange = onBlurBottomBarChange,
+                        liquidGlassEnabled = liquidGlassEnabled,
+                        onLiquidGlassChange = onLiquidGlassChange,
                     )
                 }
             }

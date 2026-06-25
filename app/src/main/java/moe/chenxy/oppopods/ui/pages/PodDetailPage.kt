@@ -33,6 +33,7 @@ import moe.chenxy.oppopods.config.ConfigManager
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearStatus
 import moe.chenxy.oppopods.ui.components.AncSwitch
+import moe.chenxy.oppopods.ui.components.GlassSliderCard
 import moe.chenxy.oppopods.ui.components.PodStatus
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import top.yukonga.miuix.kmp.basic.Card
@@ -70,6 +71,13 @@ fun PodDetailPage(
     eqPreset: Int = -1,
     onEqPresetChange: (Int) -> Unit = {},
     boxImagePath: String? = null,
+    ancIntensity: Float = 0.5f,
+    onAncIntensityChange: (Float) -> Unit = {},
+    volumeLevel: Float = 0.7f,
+    onVolumeLevelChange: (Float) -> Unit = {},
+    eqBass: Float = 0.5f,
+    onEqBassChange: (Float) -> Unit = {},
+    liquidGlassEnabled: Boolean = false,
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -134,6 +142,13 @@ fun PodDetailPage(
                     adaptiveModeEnabled = adaptiveModeEnabled,
                     eqPreset = eqPreset,
                     onEqPresetChange = onEqPresetChange,
+                    ancIntensity = ancIntensity,
+                    onAncIntensityChange = onAncIntensityChange,
+                    volumeLevel = volumeLevel,
+                    onVolumeLevelChange = onVolumeLevelChange,
+                    eqBass = eqBass,
+                    onEqBassChange = onEqBassChange,
+                    liquidGlassEnabled = liquidGlassEnabled,
                     bottomContentPadding = bottomContentPadding
                 )
             }
@@ -180,6 +195,13 @@ fun PodDetailPage(
             adaptiveModeEnabled = adaptiveModeEnabled,
             eqPreset = eqPreset,
             onEqPresetChange = onEqPresetChange,
+            ancIntensity = ancIntensity,
+            onAncIntensityChange = onAncIntensityChange,
+            volumeLevel = volumeLevel,
+            onVolumeLevelChange = onVolumeLevelChange,
+            eqBass = eqBass,
+            onEqBassChange = onEqBassChange,
+            liquidGlassEnabled = liquidGlassEnabled,
             bottomContentPadding = bottomContentPadding
         )
     }
@@ -217,6 +239,13 @@ private fun LazyListScope.podControlItems(
     adaptiveModeEnabled: Boolean,
     eqPreset: Int,
     onEqPresetChange: (Int) -> Unit,
+    ancIntensity: Float,
+    onAncIntensityChange: (Float) -> Unit,
+    volumeLevel: Float,
+    onVolumeLevelChange: (Float) -> Unit,
+    eqBass: Float,
+    onEqBassChange: (Float) -> Unit,
+    liquidGlassEnabled: Boolean,
     bottomContentPadding: Dp
 ) {
     val spatialAudioValues = listOf(
@@ -245,6 +274,51 @@ private fun LazyListScope.podControlItems(
                 ancStatus = ancMode,
                 onAncModeChange = onAncModeChange,
                 adaptiveModeEnabled = adaptiveModeEnabled
+            )
+        }
+    }
+
+    item {
+        Card(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+        ) {
+            GlassSliderCard(
+                title = "降噪强度",
+                value = ancIntensity,
+                onValueChange = onAncIntensityChange,
+                valueRange = 0f..1f,
+                steps = 99,
+                valueFormatter = { "%.0f%%".format(it * 100) }
+            )
+        }
+    }
+
+    item {
+        Card(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+        ) {
+            GlassSliderCard(
+                title = "音量增强",
+                value = volumeLevel,
+                onValueChange = onVolumeLevelChange,
+                valueRange = 0f..1f,
+                steps = 99,
+                valueFormatter = { "%.0f%%".format(it * 100) }
+            )
+        }
+    }
+
+    item {
+        Card(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+        ) {
+            GlassSliderCard(
+                title = "低音增强",
+                value = eqBass,
+                onValueChange = onEqBassChange,
+                valueRange = 0f..1f,
+                steps = 99,
+                valueFormatter = { "%.0f%%".format(it * 100) }
             )
         }
     }

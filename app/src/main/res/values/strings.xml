@@ -134,4 +134,9 @@
     <string name="anc_implementation_summary">Auto follows model detection. Manual switch for ANC behavior compatibility.</string>
     <string name="anc_implementation_standard">Standard</string>
     <string name="anc_implementation_compatible">Compatible</string>
+    <string name="liquid_glass">Liquid Glass</string>
+    <string name="liquid_glass_summary">Enable iOS-style liquid glass visual effect</string>
+    <string name="anc_intensity">ANC Intensity</string>
+    <string name="volume_level">Volume Level</string>
+    <string name="eq_bass">Bass Enhancement</string>
 </resources>

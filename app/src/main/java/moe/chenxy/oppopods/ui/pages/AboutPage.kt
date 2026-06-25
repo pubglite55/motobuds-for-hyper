@@ -60,9 +60,20 @@ fun AboutPage(
                     summary = "OppoPods-Enhanced"
                 )
                 BasicComponent(
+<<<<<<< HEAD
                     title = "OppoPods-Enhanced",
                     summary = "https://github.com/1812z/OppoPods",
                     onClick = { openUrl("https://github.com/1812z/OppoPods") }
+=======
+                    title = "HyperPods",
+                    summary = "https://github.com/Art-Chen/HyperPods",
+                    onClick = { openUrl("https://github.com/Art-Chen/HyperPods") }
+                )
+                BasicComponent(
+                    title = "LiquidGlass",
+                    summary = "https://github.com/QmDeve/AndroidLiquidGlassView",
+                    onClick = { openUrl("https://github.com/QmDeve/AndroidLiquidGlassView") }
+>>>>>>> dec64d3 (v1.1: UI improvements and bug fixes)
                 )
             }
         }

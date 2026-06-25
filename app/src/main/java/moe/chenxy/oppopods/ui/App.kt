@@ -17,6 +17,8 @@ fun App(
     onFloatingBottomBarChange: (Boolean) -> Unit = {},
     blurBottomBar: MutableState<Boolean> = mutableStateOf(false),
     onBlurBottomBarChange: (Boolean) -> Unit = {},
+    liquidGlassEnabled: MutableState<Boolean> = mutableStateOf(false),
+    onLiquidGlassChange: (Boolean) -> Unit = {},
     appLanguage: MutableState<Int> = mutableStateOf(AppLocale.SYSTEM),
     onAppLanguageChange: (Int) -> Unit = {},
 ) {
@@ -39,6 +41,8 @@ fun App(
                 onFloatingBottomBarChange = onFloatingBottomBarChange,
                 blurBottomBar = blurBottomBar,
                 onBlurBottomBarChange = onBlurBottomBarChange,
+                liquidGlassEnabled = liquidGlassEnabled,
+                onLiquidGlassChange = onLiquidGlassChange,
                 appLanguage = appLanguage,
                 onAppLanguageChange = onAppLanguageChange,
             )
