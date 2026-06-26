@@ -137,4 +137,8 @@
     <string name="low_battery_title">Low Battery Alert</string>
     <string name="auto_reconnect">Auto Reconnect</string>
     <string name="auto_reconnect_summary">Automatically reconnect when earphone disconnects</string>
+    <string name="blur_bottom_bar">Blur Bottom Bar</string>
+    <string name="blur_bottom_bar_summary">Apply blur effect to the bottom navigation bar</string>
+    <string name="liquid_glass">Liquid Glass</string>
+    <string name="liquid_glass_summary">Enable liquid glass effect for bottom bar</string>
 </resources>

@@ -25,6 +25,10 @@ fun ThemeSettingsPage(
     onAccentModeChange: (Int) -> Unit = {},
     floatingBottomBar: MutableState<Boolean> = mutableStateOf(true),
     onFloatingBottomBarChange: (Boolean) -> Unit = {},
+    blurBottomBar: MutableState<Boolean> = mutableStateOf(false),
+    onBlurBottomBarChange: (Boolean) -> Unit = {},
+    liquidGlassEnabled: MutableState<Boolean> = mutableStateOf(false),
+    onLiquidGlassChange: (Boolean) -> Unit = {},
 ) {
     val themeOptions = listOf(
         stringResource(R.string.theme_follow_system),
@@ -72,6 +76,18 @@ fun ThemeSettingsPage(
                     summary = stringResource(R.string.floating_bottom_bar_summary),
                     checked = floatingBottomBar.value,
                     onCheckedChange = { onFloatingBottomBarChange(it) },
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.blur_bottom_bar),
+                    summary = stringResource(R.string.blur_bottom_bar_summary),
+                    checked = blurBottomBar.value,
+                    onCheckedChange = { onBlurBottomBarChange(it) },
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.liquid_glass),
+                    summary = stringResource(R.string.liquid_glass_summary),
+                    checked = liquidGlassEnabled.value,
+                    onCheckedChange = { onLiquidGlassChange(it) },
                 )
             }
         }

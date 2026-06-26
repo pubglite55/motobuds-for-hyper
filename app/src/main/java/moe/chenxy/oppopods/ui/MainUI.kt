@@ -886,6 +886,14 @@ fun MainUI(
                         onFloatingBottomBarChange = {
                             floatingBottomBar.value = it
                         },
+                        blurBottomBar = blurBottomBar,
+                        onBlurBottomBarChange = {
+                            blurBottomBar.value = it
+                        },
+                        liquidGlassEnabled = liquidGlassEnabled,
+                        onLiquidGlassChange = {
+                            liquidGlassEnabled.value = it
+                        },
                     )
                 }
             }

@@ -137,4 +137,8 @@
     <string name="low_battery_title">低バッテリー警告</string>
     <string name="auto_reconnect">自動再接続</string>
     <string name="auto_reconnect_summary">ヘッドセットの切断後、自動的に再接続</string>
+    <string name="blur_bottom_bar">ボトムバーをぼかす</string>
+    <string name="blur_bottom_bar_summary">ボトムナビゲーションにぼかし効果を適用</string>
+    <string name="liquid_glass">リキッドグラス</string>
+    <string name="liquid_glass_summary">ボトムバーにリキッドグラス効果を有効にする</string>
 </resources>

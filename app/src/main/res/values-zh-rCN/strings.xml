@@ -138,4 +138,8 @@
     <string name="low_battery_title">低电量提醒</string>
     <string name="auto_reconnect">自动重连</string>
     <string name="auto_reconnect_summary">耳机断开后自动重新连接</string>
+    <string name="blur_bottom_bar">模糊底栏</string>
+    <string name="blur_bottom_bar_summary">为底部导航栏添加模糊效果</string>
+    <string name="liquid_glass">液态玻璃</string>
+    <string name="liquid_glass_summary">为底栏启用液态玻璃效果</string>
 </resources>
