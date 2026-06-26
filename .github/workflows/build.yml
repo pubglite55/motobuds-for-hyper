@@ -79,5 +79,22 @@ jobs:
           4. 重启作用域或手机
           5. 连接 Moto Buds 耳机
           
-          ### ✨ 更新内容
-          ${{ github.event.head_commit.message || '版本更新' }}
+          ### ✨ v1.3.0 更新内容
+          
+          **新功能：**
+          - 📶 BLE GATT 双模支持（BLE GATT 优先 + RFCOMM SPP 备用）
+          - 🔌 单耳充电状态显示（逆向官方 APK 发现 bit 7 充电标志）
+          - 🎛️ EQ 模式自动显示当前模式名称
+          - 🎧 MiLink 设备过滤（仅 Hook MotoBuds 耳机，排除音箱等设备）
+          
+          **Bug 修复：**
+          - 修复 14 处 CoroutineScope 泄漏
+          - 修复 35 处 !! 强制解包操作符
+          - 修复 Authority 不匹配
+          - 修复 MediaControl 内存泄漏
+          - 修复 ConfigManager 代码重复
+          - 移除死代码
+          
+          **文档：**
+          - 添加 KDoc 文档到核心类
+          - 更新 README 截图
