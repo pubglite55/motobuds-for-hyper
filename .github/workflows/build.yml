@@ -64,4 +64,20 @@ jobs:
           app/build/outputs/apk/release/app-release.apk
         draft: false
         prerelease: false
-        generate_release_notes: true
+        generate_release_notes: false
+        body: |
+          ## 🎧 MotoBuds for Hyper ${{ github.ref_name }}
+          
+          ### 📦 下载
+          - **debug.apk** — 调试版本（可直接安装）
+          - **release.apk** — 签名发布版本（推荐）
+          
+          ### 📋 安装方法
+          1. 下载 APK（推荐 Release 版本）
+          2. 在 LSPosed 中启用模块
+          3. 勾选作用域：com.android.bluetooth、com.milink.service、com.xiaomi.bluetooth
+          4. 重启作用域或手机
+          5. 连接 Moto Buds 耳机
+          
+          ### ✨ 更新内容
+          ${{ github.event.head_commit.message || '版本更新' }}
