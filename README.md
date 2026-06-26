@@ -172,12 +172,20 @@ A: 请确保蓝牙连接稳定，模块会自动每 15 秒同步状态。
 
 <table>
 <tr>
-<td align="center"><img src="docs/earphone_page.jpg" width="270" style="border-radius: 12px;" alt="耳机主界面"/></td>
+<td align="center"><img src="docs/earphone_page.jpg" width="270" style="border-radius: 12px;" alt="锁屏界面"/></td>
 <td align="center"><img src="docs/module_page.jpg" width="270" style="border-radius: 12px;" alt="模块主页"/></td>
 </tr>
 <tr>
-<td align="center">🎧 耳机主界面</td>
+<td align="center">🔒 锁屏界面</td>
 <td align="center">🏠 模块主页</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/微信图片_20260625080853_74_9.jpg" width="270" style="border-radius: 12px;" alt="milink 仿造设备"/></td>
+<td align="center"><img src="docs/微信图片_20260625080855_75_9.jpg" width="270" style="border-radius: 12px;" alt="快捷弹窗"/></td>
+</tr>
+<tr>
+<td align="center">📱 milink 仿造设备</td>
+<td align="center">⚡ 快捷弹窗</td>
 </tr>
 </table>
 

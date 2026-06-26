@@ -172,12 +172,20 @@ A: Ensure stable Bluetooth connection. The module auto-syncs status every 15 sec
 
 <table>
 <tr>
-<td align="center"><img src="docs/earphone_page.jpg" width="270" style="border-radius: 12px;" alt="Earphones Page"/></td>
+<td align="center"><img src="docs/earphone_page.jpg" width="270" style="border-radius: 12px;" alt="Lock Screen"/></td>
 <td align="center"><img src="docs/module_page.jpg" width="270" style="border-radius: 12px;" alt="Module Page"/></td>
 </tr>
 <tr>
-<td align="center">🎧 Earphones Page</td>
+<td align="center">🔒 Lock Screen</td>
 <td align="center">🏠 Module Page</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/微信图片_20260625080853_74_9.jpg" width="270" style="border-radius: 12px;" alt="milink Emulated Device"/></td>
+<td align="center"><img src="docs/微信图片_20260625080855_75_9.jpg" width="270" style="border-radius: 12px;" alt="Quick Popup"/></td>
+</tr>
+<tr>
+<td align="center">📱 milink Emulated Device</td>
+<td align="center">⚡ Quick Popup</td>
 </tr>
 </table>
 
