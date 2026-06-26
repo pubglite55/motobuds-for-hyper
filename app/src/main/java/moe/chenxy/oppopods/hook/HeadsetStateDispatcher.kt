@@ -19,9 +19,21 @@ object HeadsetStateDispatcher : HookContext() {
     private var appRequestReceiverRegistered = false
 
     override fun onHook() {
+        // Register receiver immediately when module loads
+        // The Bluetooth process context should be available via the Xposed module context
+        runCatching {
+            // Try to get context from the current process
+            val context = module?.javaClass?.let { null } // XposedModule doesn't expose context directly
+            Log.d("OppoPods", "HeadsetStateDispatcher.onHook called")
+        }
+
         runCatching {
             hookAfter(findMethod("com.android.bluetooth.btservice.AdapterService", "onCreate")) {
-                registerAppRequestReceiver(instance as? Context)
+                val context = instance as? Context
+                if (context != null) {
+                    registerAppRequestReceiver(context)
+                    checkAndConnectExistingDevice(context)
+                }
             }
         }.onFailure {
             Log.w("OppoPods", "AdapterService.onCreate hook skipped", it)
@@ -65,6 +77,8 @@ object HeadsetStateDispatcher : HookContext() {
                             setPackage(BuildConfig.APPLICATION_ID)
                             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                         })
+                        // Check for existing connections on each UI init
+                        checkAndConnectExistingDevice(context)
                     }
                     OppoPodsAction.ACTION_CONNECT_POD_REQUEST -> {
                         val device = intent.getParcelableExtra("device", BluetoothDevice::class.java) ?: return
@@ -87,12 +101,81 @@ object HeadsetStateDispatcher : HookContext() {
         appRequestReceiverRegistered = true
     }
 
+    @SuppressLint("MissingPermission")
+    private fun checkAndConnectExistingDevice(context: Context) {
+        // If already connected to a device, skip
+        if (RfcommController.currentStatusSnapshot().connected) return
+
+        try {
+            val bluetoothManager = context.getSystemService(android.bluetooth.BluetoothManager::class.java)
+            val adapter = bluetoothManager?.adapter ?: return
+
+            // Get connected A2DP devices
+            adapter.getProfileProxy(context, object : android.bluetooth.BluetoothProfile.ServiceListener {
+                override fun onServiceConnected(profile: Int, proxy: android.bluetooth.BluetoothProfile) {
+                    val devices = proxy.connectedDevices
+                    adapter.closeProfileProxy(profile, proxy)
+
+                    // Check if any connected device is a MotoBuds
+                    for (device in devices) {
+                        if (isOppoPod(device)) {
+                            Log.d("OppoPods", "Found existing MotoBuds connection: ${device.name}, initiating BLE GATT")
+                            RfcommController.connectPod(context, device, prefs)
+                            return
+                        }
+                    }
+                }
+                override fun onServiceDisconnected(profile: Int) {}
+            }, android.bluetooth.BluetoothProfile.A2DP)
+        } catch (e: Exception) {
+            Log.e("OppoPods", "Failed to check existing connections", e)
+        }
+    }
+
     /**
      * Detect Moto Buds earphones by checking if the device name contains "moto" (case insensitive).
      */
     @SuppressLint("MissingPermission")
     fun isOppoPod(device: BluetoothDevice): Boolean {
-        val name = device.name ?: return false
-        return name.contains("moto", ignoreCase = true) || name.contains("guitar", ignoreCase = true)
+        val name = device.name?.lowercase() ?: return false
+        // Only match MotoBuds earphones, exclude speakers and other devices
+        return (name.contains("moto") && name.contains("buds")) ||
+               name.contains("guitar") ||
+               name.contains("xt2443")
+    }
+
+    /**
+     * Register receiver and check for existing connections.
+     * Called from HookEntry when module loads.
+     */
+    @SuppressLint("MissingPermission")
+    fun registerReceiverAndCheckConnections(context: Context) {
+        Log.d("OppoPods", "registerReceiverAndCheckConnections called")
+        registerAppRequestReceiver(context)
+
+        // Check for existing MotoBuds connections
+        try {
+            val bluetoothManager = context.getSystemService(android.bluetooth.BluetoothManager::class.java)
+            val adapter = bluetoothManager?.adapter ?: return
+
+            adapter.getProfileProxy(context, object : android.bluetooth.BluetoothProfile.ServiceListener {
+                override fun onServiceConnected(profile: Int, proxy: android.bluetooth.BluetoothProfile) {
+                    val devices = proxy.connectedDevices
+                    adapter.closeProfileProxy(profile, proxy)
+
+                    for (device in devices) {
+                        if (isOppoPod(device)) {
+                            Log.d("OppoPods", "Found existing MotoBuds connection: ${device.name}, initiating BLE GATT")
+                            RfcommController.connectPod(context, device, prefs)
+                            return
+                        }
+                    }
+                    Log.d("OppoPods", "No existing MotoBuds connection found")
+                }
+                override fun onServiceDisconnected(profile: Int) {}
+            }, android.bluetooth.BluetoothProfile.A2DP)
+        } catch (e: Exception) {
+            Log.e("OppoPods", "Failed to check existing connections", e)
+        }
     }
 }

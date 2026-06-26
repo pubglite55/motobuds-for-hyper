@@ -319,9 +319,17 @@ private fun LazyListScope.podControlItems(
                 stringResource(R.string.eq_preset_bass),
                 stringResource(R.string.eq_preset_dynaudio),
             )
+            val currentEqName = when (eqPreset) {
+                EqPreset.AUTHENTIC -> eqOptions[0]
+                EqPreset.DETAIL -> eqOptions[1]
+                EqPreset.VOCAL -> eqOptions[2]
+                EqPreset.BASS -> eqOptions[3]
+                EqPreset.CUSTOM -> eqOptions[4]
+                else -> stringResource(R.string.eq_preset_summary)
+            }
             OverlayDropdownPreference(
                 title = stringResource(R.string.eq_preset_title),
-                summary = stringResource(R.string.eq_preset_summary),
+                summary = currentEqName,
                 items = eqOptions,
                 selectedIndex = EqPreset.ALL.indexOf(eqPreset).coerceAtLeast(0),
                 onSelectedIndexChange = { onEqPresetChange(EqPreset.ALL[it]) }

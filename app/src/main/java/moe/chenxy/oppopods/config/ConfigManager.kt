@@ -6,6 +6,16 @@ import io.github.libxposed.service.XposedService
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+/**
+ * Application configuration data class.
+ *
+ * Stores user preferences for MotoBuds module behavior including:
+ * - Device identification (fakeDeviceId)
+ * - Logging level
+ * - Focus Island (Super Island) display settings
+ * - Notification click actions
+ * - Capability overrides for earphone features
+ */
 @Serializable
 data class AppConfig(
     val fakeDeviceId: String = ConfigManager.DEFAULT_FAKE_DEVICE_ID,
@@ -20,6 +30,19 @@ data class AppConfig(
     val ancImplementationCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
 )
 
+/**
+ * Configuration manager for MotoBuds module.
+ *
+ * Manages user preferences and configuration state, including:
+ * - Device identification and fake device ID
+ * - Logging levels (OFF, BASIC, DEBUG)
+ * - Focus Island display modes and timings
+ * - Notification and click actions
+ * - Capability overrides for earphone features
+ *
+ * Configuration is stored in SharedPreferences and synchronized across processes
+ * via LSPosed's remote preferences.
+ */
 object ConfigManager {
     private const val TAG = "MotoBuds-Config"
     const val PREFS_NAME = "motobuds_settings"

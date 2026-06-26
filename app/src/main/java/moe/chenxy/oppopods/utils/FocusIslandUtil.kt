@@ -35,8 +35,8 @@ object FocusIslandUtil {
             // Need at least one ear connected
             if (!leftConnected && !rightConnected) return false
 
-            val leftText = if (leftConnected) "${batteryParams.left!!.battery}" else "-"
-            val rightText = if (rightConnected) "${batteryParams.right!!.battery}" else "-"
+            val leftText = if (leftConnected) "${batteryParams.left?.battery}" else "-"
+            val rightText = if (rightConnected) "${batteryParams.right?.battery}" else "-"
 
             val leftBitmap = PodImageLoader.loadIslandLeftBitmap(context, prefs, address)
             val rightBitmap = PodImageLoader.loadIslandRightBitmap(context, prefs, address)
@@ -60,8 +60,8 @@ object FocusIslandUtil {
             )
 
             val contentParts = mutableListOf<String>()
-            if (leftConnected) contentParts.add("L: ${batteryParams.left!!.battery}%")
-            if (rightConnected) contentParts.add("R: ${batteryParams.right!!.battery}%")
+            if (leftConnected) contentParts.add("L: ${batteryParams.left?.battery}%")
+            if (rightConnected) contentParts.add("R: ${batteryParams.right?.battery}%")
             val contentText = contentParts.joinToString("  ")
 
             val extras = FocusNotification.buildV3 {

@@ -58,18 +58,18 @@ object MiBluetoothToastHook : HookContext() {
                     alias = bluetoothDevice.name
                 }
 
-                val caseBattStr = if (batteryParams.case != null && batteryParams.case!!.isConnected)
-                    "${context.resources.getString(miheadset_notification_Box)}${batteryParams.case!!.battery}%" +
-                            "${if (batteryParams.case!!.isCharging) "⚡ " else " "}\n"
+                val caseBattStr = if (batteryParams.case?.isConnected == true)
+                    "${context.resources.getString(miheadset_notification_Box)}${batteryParams.case?.battery}%" +
+                            "${if (batteryParams.case?.isCharging == true) "⚡ " else " "}\n"
                 else ""
-                val leftEar = if (batteryParams.left != null && batteryParams.left!!.isConnected)
-                    "${context.resources.getString(miheadset_notification_LeftEar)}${batteryParams.left!!.battery}%" +
-                        (if (batteryParams.left!!.isCharging) "⚡" else "")
+                val leftEar = if (batteryParams.left?.isConnected == true)
+                    "${context.resources.getString(miheadset_notification_LeftEar)}${batteryParams.left?.battery}%" +
+                        (if (batteryParams.left?.isCharging == true) "⚡" else "")
                 else ""
                 val leftToRight = if (batteryParams.left?.isConnected == true && batteryParams.right?.isConnected == true) " " else ""
-                val rightEar = if (batteryParams.right != null && batteryParams.right!!.isConnected)
-                    "$leftToRight${context.resources.getString(miheadset_notification_RightEar)}${batteryParams.right!!.battery}%" +
-                        (if (batteryParams.right!!.isCharging) "⚡ " else " ")
+                val rightEar = if (batteryParams.right?.isConnected == true)
+                    "$leftToRight${context.resources.getString(miheadset_notification_RightEar)}${batteryParams.right?.battery}%" +
+                        (if (batteryParams.right?.isCharging == true) "⚡ " else " ")
                 else ""
 
                 val contentText: String = caseBattStr + leftEar + rightEar
@@ -250,14 +250,14 @@ object MiBluetoothToastHook : HookContext() {
                                     Log.d("MotoBuds", "skip module island mode=${ConfigManager.islandMode()}")
                                     return
                                 }
-                                val batteryParams = p1.getParcelableExtra("batteryParams", BatteryParams::class.java)!!
+                                val batteryParams = p1.getParcelableExtra("batteryParams", BatteryParams::class.java) ?: return
                                 // Use Focus Island (HyperOS 3+) for battery display
                                 val address = p1.getStringExtra("address").orEmpty()
                                 FocusIslandUtil.showBatteryIsland(context, prefs, batteryParams, address)
                             } else if (p1?.action == "xiuxiu.action.motobuds.updatepodsnotification") {
-                                val batteryParams = p1.getParcelableExtra<BatteryParams>("batteryParams", BatteryParams::class.java)
+                                val batteryParams = p1.getParcelableExtra<BatteryParams>("batteryParams", BatteryParams::class.java) ?: return
                                 val device = p1.getParcelableExtra("device", BluetoothDevice::class.java)
-                                createPodsNotification(device, context, batteryParams!!)
+                                createPodsNotification(device, context, batteryParams)
                             } else if (p1?.action == "xiuxiu.action.motobuds.cancelpodsnotification") {
                                 val device = p1.getParcelableExtra("device", BluetoothDevice::class.java) as BluetoothDevice
                                 cancelNotification(device, context)

@@ -14,7 +14,6 @@ package moe.chenxy.oppopods.pods
  *   0xA0 = Response Ack (earphone reply)
  *   0x40 = Notification Ack (earphone push)
  */
-
 object MotoBudsPackets {
 
     private val HEAD = byteArrayOf(0x48, 0x45, 0x41, 0x44) // "HEAD"
@@ -24,6 +23,16 @@ object MotoBudsPackets {
     const val TYPE_RESPONSE_ACK: Byte = 0xA0.toByte()
     const val TYPE_NOTIFICATION_ACK: Byte = 0x40.toByte()
 
+    /**
+     * Build a complete protocol packet.
+     *
+     * @param opcode Command opcode (e.g., [Cmd.GET_BATTERY_LEVEL])
+     * @param type Packet type (default: [TYPE_COMMAND_ACK])
+     * @param result Response result code (default: 0x00 for success)
+     * @param seq Sequence number for request-response matching
+     * @param payload Command payload data
+     * @return Complete packet bytes ready to send
+     */
     fun buildPacket(opcode: Int, type: Byte = TYPE_COMMAND_ACK, result: Byte = 0x00, seq: Int = 0, payload: ByteArray = byteArrayOf()): ByteArray {
         val pduLen = 8 + payload.size
         val totalLen = pduLen
@@ -153,7 +162,17 @@ object EqPreset {
     val ALL: List<Int> = listOf(AUTHENTIC, DETAIL, VOCAL, BASS, CUSTOM)
 }
 
-/** MotoBuds protocol opcodes. */
+/**
+ * MotoBuds protocol opcodes.
+ *
+ * Opcodes are organized by functionality:
+ * - Device info (0x000-0x010): Basic device information queries
+ * - Toggle Config (0x100-0x106): Gesture and toggle configuration
+ * - ANC (0x200-0x20A): Active Noise Cancellation control
+ * - EQ (0x300-0x31E): Equalizer and audio enhancement
+ * - Functions (0x400-0x410): Device functions like find my device
+ * - Advanced (0x500-0x702): OTA, logging, and advanced features
+ */
 object Cmd {
     // Device info (0x000-0x010)
     const val GET_PROFILE_VERSION = 0x000
@@ -384,18 +403,6 @@ object Enums {
         payload = byteArrayOf(0x00)
     )
 
-    /** Enable low-latency game mode */
-    val GAME_LOW_LATENCY_ON: ByteArray = MotoBudsPackets.buildPacket(
-        opcode = Cmd.SET_GAME_MODE,
-        payload = byteArrayOf(0x01)
-    )
-
-    /** Disable low-latency game mode */
-    val GAME_LOW_LATENCY_OFF: ByteArray = MotoBudsPackets.buildPacket(
-        opcode = Cmd.SET_GAME_MODE,
-        payload = byteArrayOf(0x00)
-    )
-
     /** Enable volume boost (opcode 0x314) */
     val VOLUME_BOOST_ON: ByteArray = MotoBudsPackets.buildPacket(
         opcode = Cmd.SET_VOLUME_BOOST_STATE,
@@ -440,9 +447,9 @@ object Enums {
         return when (implementation) {
             GameModeImplementation.STANDARD -> listOf(if (enabled) GAME_MODE_ON else GAME_MODE_OFF)
             GameModeImplementation.COMPATIBLE -> if (enabled) {
-                listOf(GAME_MODE_ON, GAME_LOW_LATENCY_ON)
+                listOf(GAME_MODE_ON, GAME_MODE_ON)
             } else {
-                listOf(GAME_LOW_LATENCY_OFF, GAME_MODE_OFF)
+                listOf(GAME_MODE_OFF, GAME_MODE_OFF)
             }
         }
     }
@@ -477,6 +484,9 @@ object BatteryParser {
      * Parse a raw packet for battery response.
      * MotoBuds frame: HEAD(4) + len(2) + PDU(8+N) + CRC(4) + TAIL(4)
      * PDU: opcode(2 BE) + type(1) + result(1) + payload_len(2 LE) + seq(2 LE) + payload(N)
+     *
+     * Battery byte format: bit 7 = charging flag, bits 0-6 = level (0-100)
+     * 0xFF = unknown/not present
      */
     fun parse(data: ByteArray): BatteryResult? {
         if (data.size < 18) return null // minimum frame size
@@ -497,13 +507,13 @@ object BatteryParser {
 
         if (data.size < payloadStart + payloadLen || payloadLen < 3) return null
 
-        val leftLevel = data[payloadStart].toInt() and 0xFF
-        val rightLevel = data[payloadStart + 1].toInt() and 0xFF
-        val caseLevel = data[payloadStart + 2].toInt() and 0xFF
+        val leftRaw = data[payloadStart].toInt() and 0xFF
+        val rightRaw = data[payloadStart + 1].toInt() and 0xFF
+        val caseRaw = data[payloadStart + 2].toInt() and 0xFF
 
-        val left = if (leftLevel != 0xFF) BatteryInfo(leftLevel.coerceIn(0, 100), false) else null
-        val right = if (rightLevel != 0xFF) BatteryInfo(rightLevel.coerceIn(0, 100), false) else null
-        val case = if (caseLevel != 0xFF) BatteryInfo(caseLevel.coerceIn(0, 100), false) else null
+        val left = parseBatteryByte(leftRaw)
+        val right = parseBatteryByte(rightRaw)
+        val case = parseBatteryByte(caseRaw)
 
         return BatteryResult(left, right, case)
     }
@@ -526,15 +536,27 @@ object BatteryParser {
 
         if (data.size < payloadStart + payloadLen || payloadLen < 3) return null
 
-        val leftLevel = data[payloadStart].toInt() and 0xFF
-        val rightLevel = data[payloadStart + 1].toInt() and 0xFF
-        val caseLevel = data[payloadStart + 2].toInt() and 0xFF
+        val leftRaw = data[payloadStart].toInt() and 0xFF
+        val rightRaw = data[payloadStart + 1].toInt() and 0xFF
+        val caseRaw = data[payloadStart + 2].toInt() and 0xFF
 
-        val left = if (leftLevel != 0xFF) BatteryInfo(leftLevel.coerceIn(0, 100), false) else null
-        val right = if (rightLevel != 0xFF) BatteryInfo(rightLevel.coerceIn(0, 100), false) else null
-        val case = if (caseLevel != 0xFF) BatteryInfo(caseLevel.coerceIn(0, 100), false) else null
+        val left = parseBatteryByte(leftRaw)
+        val right = parseBatteryByte(rightRaw)
+        val case = parseBatteryByte(caseRaw)
 
         return BatteryResult(left, right, case)
+    }
+
+    /**
+     * Parse a single battery byte.
+     * Format: bit 7 = charging flag, bits 0-6 = level (0-100)
+     * 0xFF = unknown
+     */
+    fun parseBatteryByte(raw: Int): BatteryInfo? {
+        if (raw == 0xFF) return null
+        val isCharging = (raw and 0x80) != 0
+        val level = (raw and 0x7F).coerceIn(0, 100)
+        return BatteryInfo(level, isCharging)
     }
 }
 
@@ -676,39 +698,6 @@ object GameModeParser {
 }
 
 /** Parser for switch feature set response. */
-object SwitchFeatureSetParser {
-    data class Result(
-        val status: Int,
-        val value: Int?,
-        val featureId: Int? = null
-    )
-
-    fun parse(data: ByteArray): Result? {
-        return null
-    }
-}
-
-/** Parser for notification support. */
-object NotificationSupportParser {
-    fun parse(data: ByteArray): ByteArray? {
-        return null
-    }
-}
-
-/** Parser for smart ANC level. */
-object SmartAncLevelParser {
-    fun parse(data: ByteArray): NoiseControlMode? {
-        return null
-    }
-}
-
-/** Parser for transparency vocal enhancement. */
-object TransparencyVocalEnhancementParser {
-    fun parse(data: ByteArray): Boolean? {
-        return null
-    }
-}
-
 /** ANC protocol implementation variant. */
 enum class AncImplementation {
     STANDARD,

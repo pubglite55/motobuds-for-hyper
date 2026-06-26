@@ -250,8 +250,9 @@ fun MainUI(
 
                     OppoPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
                         connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
-                        batteryParams.value =
-                            p1.getParcelableExtra("status", BatteryParams::class.java)!!
+                        p1.getParcelableExtra("status", BatteryParams::class.java)?.let {
+                            batteryParams.value = it
+                        }
                     }
 
                     OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED -> {
@@ -389,6 +390,18 @@ fun MainUI(
     }
 
     LaunchedEffect(Unit) {
+        // On startup, try to connect to last known device
+        val lastDevice = earphonePrefs.value.firstOrNull()
+        if (lastDevice != null && hookConnectionState == "disconnected") {
+            Log.i("OppoPods", "Trying to connect to last known device: ${lastDevice.name}")
+            Intent(OppoPodsAction.ACTION_CONNECT_POD_REQUEST).apply {
+                putExtra("device", BluetoothAdapter.getDefaultAdapter().getRemoteDevice(lastDevice.address))
+                setPackage("com.android.bluetooth")
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                context.sendBroadcast(this)
+            }
+        }
+
         while (true) {
             sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_PODS_UI_INIT)
             sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_REFRESH_STATUS)

@@ -17,6 +17,7 @@ import android.os.SystemClock
 import moe.chenxy.oppopods.hook.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.xiuxiu391.motobuds.BuildConfig
@@ -37,42 +38,74 @@ import java.util.UUID
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicInteger
 
-@SuppressLint("MissingPermission", "StaticFieldLeak")
+/**
+ * Main controller for MotoBuds earphone communication.
+ *
+ * This singleton manages the connection to MotoBuds earphones via BLE GATT
+ * (primary) or RFCOMM SPP (fallback). It handles:
+ *
+ * - Connection lifecycle (connect, disconnect, reconnect)
+ * - Protocol command sending and response parsing
+ * - Battery, ANC, EQ, game mode, and spatial audio control
+ * - Focus Island / Super Island integration
+ * - Media router integration for audio routing
+ *
+ * Architecture:
+ * ```
+ * App UI ←→ RfcommController ←→ BleGattTransport ←→ Earphones
+ *                ↓
+ *          Packets.kt (protocol definitions)
+ * ```
+ *
+ * Connection flow:
+ * 1. Detect earphone via A2DP connection state change
+ * 2. Try BLE GATT connection first
+ * 3. Fallback to RFCOMM SPP if BLE fails
+ * 4. Send status queries to initialize state
+ * 5. Listen for notifications from earphones
+ */
+@SuppressLint("MissingPermission")
 object RfcommController {
     private const val TAG = "MotoBuds-RfcommController"
     private const val AUTO_RECONNECT_DELAY_MS = 120_000L
     private const val APP_UI_ACTIVE_TIMEOUT_MS = 75_000L
+    private const val CONNECT_RETRY_MAX_ATTEMPTS = 5
+    private const val CONNECT_RETRY_BASE_DELAY_MS = 2_000L
+    private const val CONNECT_RETRY_MAX_DELAY_MS = 30_000L
+    private const val BATTERY_UNKNOWN = 0xFF
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Basic Objects
     private var socket: BluetoothSocket? = null
     private var mContext: Context? = null
-    lateinit var mDevice: BluetoothDevice
-    private lateinit var mPrefs: SharedPreferences
+    private var _device: BluetoothDevice? = null
+    private val device: BluetoothDevice get() = _device ?: throw IllegalStateException("device not initialized")
+    private var _prefs: SharedPreferences? = null
+    private val prefs: SharedPreferences get() = _prefs ?: throw IllegalStateException("prefs not initialized")
 
     private var scanToken: MediaRouter2.ScanToken? = null
     var routes: List<MediaRoute2Info> = listOf()
-    private lateinit var mediaRouter: MediaRouter2
+    private var _mediaRouter: MediaRouter2? = null
+    private val mediaRouter: MediaRouter2 get() = _mediaRouter ?: throw IllegalStateException("mediaRouter not initialized")
 
     // Status
     private var mShowedConnectedToast = false
-    private var isConnected = false
+    @Volatile private var isConnected = false
     private var lastTempBatt = 0
     lateinit var currentBatteryParams: BatteryParams
-    private var currentAnc: Int = 1
-    /** -1 = unknown / not in smart mode; otherwise a [NoiseControlMode].ordinal of the
-     *  level smart mode is currently auto-applying (light/medium/deep). */
-    private var currentSmartAncLevel: Int = -1
-    private var currentGameMode: Boolean = false
-    private var currentVolumeBoost: Boolean = false
-    private var currentTransparencyVocalEnhancement: Boolean = false
-    private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
-    /** -1 = unknown; otherwise one of [EqPreset.ALL]. */
-    private var currentEqPreset: Int = -1
-    private var currentDualDeviceConnection: Boolean = false
-    private var currentInEarLeft: Boolean = false
-    private var currentInEarRight: Boolean = false
-    private var currentInCase: Boolean = false
-    private var autoGameModeEnabled: Boolean = false
+    @Volatile private var currentAnc: Int = 1
+    @Volatile private var currentSmartAncLevel: Int = -1
+    @Volatile private var currentGameMode: Boolean = false
+    @Volatile private var currentVolumeBoost: Boolean = false
+    @Volatile private var currentTransparencyVocalEnhancement: Boolean = false
+    @Volatile private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
+    @Volatile private var currentEqPreset: Int = -1
+    @Volatile private var currentDualDeviceConnection: Boolean = false
+    @Volatile private var currentInEarLeft: Boolean = false
+    @Volatile private var currentInEarRight: Boolean = false
+    @Volatile private var currentInCase: Boolean = false
+    @Volatile private var autoGameModeEnabled: Boolean = false
     private var gameModeImplementation: GameModeImplementation = GameModeImplementation.STANDARD
     private var lastGameModeStatusUpdateMs: Long = 0L
     private var lastKnownCaseBattery: Int = 0
@@ -81,7 +114,9 @@ object RfcommController {
     private var receiverRegistered = false
     private var routeScanStarted = false
     private var appUiActive = false
-    private var appUiActiveUntilMs = 0L
+    private var appUiActiveUntilMs: Long = 0L
+    private var firmwareVersion: String = ""
+    private var profileVersion: String = ""
 
     data class StatusSnapshot(
         val battery: BatteryParams?,
@@ -104,7 +139,7 @@ object RfcommController {
 
     private val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(p0: Context?, p1: Intent?) {
-            handleUIEvent(p1!!)
+            p1?.let { handleUIEvent(it) }
         }
     }
 
@@ -117,7 +152,7 @@ object RfcommController {
 
     private fun changeUIBatteryStatus(status: BatteryParams) {
         sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_BATTERY_CHANGED) {
-            if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
+            _device?.let { this.putExtra("address", it.address) }
             this.putExtra("status", status)
             putBatteryExtras(status)
         }
@@ -131,7 +166,7 @@ object RfcommController {
 
     private fun changeUIWearStatus(status: WearStatus) {
         sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED) {
-            if (::mDevice.isInitialized) this.putExtra("address", mDevice.address)
+            _device?.let { this.putExtra("address", it.address) }
             putWearStatusExtras(status)
         }
         sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED) {
@@ -218,13 +253,13 @@ object RfcommController {
                 changeUISpatialAudioStatus(currentSpatialAudioMode)
                 changeUIEqPreset(currentEqPreset)
                 changeUIDualDeviceConnectionStatus(currentDualDeviceConnection)
-                if (::mDevice.isInitialized && isConnected) {
+                if (_device != null && isConnected) {
                     sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
-                        this.putExtra("address", mDevice.address)
-                        this.putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                        this.putExtra("address", device.address)
+                        this.putExtra("device_name", device.name ?: cachedDeviceName)
                     }
                     sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
-                        putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                        putExtra("device_name", device.name ?: cachedDeviceName)
                     }
                 }
             }
@@ -282,7 +317,7 @@ object RfcommController {
                 cycleAnc()
             }
             OppoPodsAction.ACTION_CONFIG_CHANGED -> {
-                ConfigManager.refreshFromPrefs(mPrefs)
+                _prefs?.let { ConfigManager.refreshFromPrefs(it) }
                 Log.d(TAG, "Config synced")
                 if (!currentCapabilities().adaptiveSupported && currentAnc == 4) {
                     setANCMode(2)
@@ -311,8 +346,8 @@ object RfcommController {
             battery = if (::currentBatteryParams.isInitialized) currentBatteryParams else null,
             anc = currentAnc,
             transparencyVocalEnhancement = currentTransparencyVocalEnhancement,
-            address = if (::mDevice.isInitialized) mDevice.address else null,
-            deviceName = if (::mDevice.isInitialized) mDevice.name ?: cachedDeviceName else cachedDeviceName.takeIf { it.isNotEmpty() },
+            address = _device?.address,
+            deviceName = _device?.name ?: cachedDeviceName.takeIf { it.isNotEmpty() },
             connected = isConnected && socket != null,
             connecting = connectionJob?.isActive == true,
             reconnectPending = reconnectPending,
@@ -328,9 +363,9 @@ object RfcommController {
 
     private fun changeUIConnectionState(state: String) {
         sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED) {
-            if (::mDevice.isInitialized) {
-                putExtra("address", mDevice.address)
-                putExtra("device_name", mDevice.name ?: cachedDeviceName)
+            _device?.let {
+                putExtra("address", it.address)
+                putExtra("device_name", it.name ?: cachedDeviceName)
             }
             putExtra("state", state)
         }
@@ -448,18 +483,18 @@ object RfcommController {
         if (shouldShowToast) {
             changeUIConnectionState("connected")
             sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
-                this.putExtra("address", mDevice.address)
-                this.putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                this.putExtra("address", device.address)
+                this.putExtra("device_name", device.name ?: cachedDeviceName)
             }
             sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_CONNECTED) {
-                putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                putExtra("device_name", device.name ?: cachedDeviceName)
             }
             if (shouldShowIsland(ConfigManager.ISLAND_SHOW_TIMING_CONNECTED)) {
-                MiuiStrongToastUtil.showPodsBatteryToastByMiuiBt(mContext!!, batteryParams, mDevice)
+                mContext?.let { MiuiStrongToastUtil.showPodsBatteryToastByMiuiBt(it, batteryParams, device) }
             }
             mShowedConnectedToast = true
         }
-        MiuiStrongToastUtil.showPodsNotificationByMiuiBt(mContext!!, batteryParams, mDevice)
+        mContext?.let { MiuiStrongToastUtil.showPodsNotificationByMiuiBt(it, batteryParams, device) }
         changeUIBatteryStatus(batteryParams)
 
         lastTempBatt = if (left.isConnected && right.isConnected)
@@ -482,19 +517,21 @@ object RfcommController {
 
     private fun startRoutesScan() {
         if (routeScanStarted) return
+        val router = _mediaRouter ?: return
         val executor = Executor { p0 ->
-            CoroutineScope(Dispatchers.IO).launch { p0?.run() }
+            scope.launch { p0?.run() }
         }
         val preferredFeature = listOf(MediaRoute2Info.FEATURE_LIVE_AUDIO, MediaRoute2Info.FEATURE_LIVE_VIDEO)
-        mediaRouter.registerRouteCallback(executor, routeCallback, RouteDiscoveryPreference.Builder(preferredFeature, true).build())
-        scanToken = mediaRouter.requestScan(MediaRouter2.ScanRequest.Builder().build())
+        router.registerRouteCallback(executor, routeCallback, RouteDiscoveryPreference.Builder(preferredFeature, true).build())
+        scanToken = router.requestScan(MediaRouter2.ScanRequest.Builder().build())
         routeScanStarted = true
     }
 
     private fun stopRoutesScan() {
-        scanToken?.let { mediaRouter.cancelScanRequest(it) }
+        val router = _mediaRouter ?: return
+        scanToken?.let { router.cancelScanRequest(it) }
         if (routeScanStarted) {
-            mediaRouter.unregisterRouteCallback(routeCallback)
+            router.unregisterRouteCallback(routeCallback)
             routeScanStarted = false
         }
     }
@@ -509,20 +546,20 @@ object RfcommController {
         readerJob?.cancel()
         closeSocketOnly()
         mContext = context
-        mDevice = device
-        mPrefs = prefs
+        _device = device
+        _prefs = prefs
         cachedDeviceName = device.name ?: ""
         if (appRequested) {
             markAppUiActive()
         }
-        autoGameModeEnabled = mPrefs.getBoolean("auto_game_mode", false)
+        autoGameModeEnabled = prefs.getBoolean("auto_game_mode", false)
         gameModeImplementation = GameModeImplementation.fromPreference(
-            mPrefs.getString(GameModeImplementation.PREF_KEY, null)
+            prefs.getString(GameModeImplementation.PREF_KEY, null)
         )
-        ConfigManager.refreshFromPrefs(mPrefs)
-        currentAnc = ConfigManager.getLastAncMode(mPrefs)
-        currentGameMode = ConfigManager.getLastGameMode(mPrefs)
-        currentVolumeBoost = ConfigManager.getLastVolumeBoost(mPrefs)
+        ConfigManager.refreshFromPrefs(prefs)
+        currentAnc = ConfigManager.getLastAncMode(prefs)
+        currentGameMode = ConfigManager.getLastGameMode(prefs)
+        currentVolumeBoost = ConfigManager.getLastVolumeBoost(prefs)
         Log.d(TAG, "Adaptive support initial: ${currentCapabilities().adaptiveSupported}")
         Log.d(TAG, "Auto game mode initial: $autoGameModeEnabled")
         Log.d(TAG, "Game mode implementation initial: ${gameModeImplementation.preferenceValue}")
@@ -553,13 +590,14 @@ object RfcommController {
         }
 
         MediaControl.mContext = mContext
-        mediaRouter = MediaRouter2.getInstance(mContext!!)
+        _mediaRouter = mContext?.let { MediaRouter2.getInstance(it) }
         startRoutesScan()
 
         isConnected = true
         changeUIConnectionState("connecting")
 
-        connectRfcomm(initialDelayMs = 500L)
+        // Try BLE GATT first, fallback to RFCOMM SPP
+        connectBleGatt(initialDelayMs = 500L)
 
     }
 
@@ -567,9 +605,9 @@ object RfcommController {
         val ctx = mContext ?: return
         listOf("com.milink.service", "com.xiaomi.bluetooth", "com.android.settings").forEach { targetPackage ->
             Intent(action).apply {
-                if (::mDevice.isInitialized) {
-                    putExtra("address", mDevice.address)
-                    putExtra("device_name", mDevice.name ?: cachedDeviceName)
+                _device?.let {
+                    putExtra("address", it.address)
+                    putExtra("device_name", it.name ?: cachedDeviceName)
                 }
                 fill()
                 setPackage(targetPackage)
@@ -632,32 +670,85 @@ object RfcommController {
         }
     }
 
+    private fun connectBleGatt(initialDelayMs: Long = 0L) {
+        connectionJob?.cancel()
+        connectionJob = scope.launch {
+            if (initialDelayMs > 0) delay(initialDelayMs)
+            if (!isConnected || _device == null) return@launch
+
+            Log.d(TAG, "Trying BLE GATT connection...")
+            BleGattTransport.connect(mContext!!, _device!!) { data ->
+                handleBleGattData(data)
+            }
+
+            // Wait for BLE GATT connection
+            var waitCount = 0
+            while (!BleGattTransport.isConnected && waitCount < 30) {
+                delay(100)
+                waitCount++
+            }
+
+            if (BleGattTransport.isConnected) {
+                Log.d(TAG, "BLE GATT connected successfully")
+                reconnectAttempts.set(0)
+                reconnectPending = false
+                changeUIConnectionState("connecting")
+                sendStatusQueryPackets(immediateReconnect = false)
+            } else {
+                Log.d(TAG, "BLE GATT failed, falling back to RFCOMM SPP")
+                connectRfcomm(initialDelayMs = 0L)
+            }
+        }
+    }
+
+    private fun handleBleGattData(data: ByteArray) {
+        // Process data received via BLE GATT (same as RFCOMM)
+        Log.d(TAG, "BLE GATT Received: ${data.joinToString(" ") { "%02X".format(it) }}")
+        if (data.size < 14) {
+            Log.d(TAG, "BLE GATT: packet too small (${data.size} bytes)")
+            return
+        }
+        if (data[0] != 0x48.toByte() || data[1] != 0x45.toByte()) {
+            Log.d(TAG, "BLE GATT: invalid header")
+            return
+        }
+
+        val opcode = ((data[6].toInt() and 0xFF) shl 8) or (data[7].toInt() and 0xFF)
+        val payloadLen = ((data[10].toInt() and 0xFF) or ((data[11].toInt() and 0xFF) shl 8))
+        val payload = if (payloadLen > 0 && data.size >= 14 + payloadLen) {
+            data.copyOfRange(14, 14 + payloadLen)
+        } else null
+
+        Log.d(TAG, "BLE GATT opcode=0x${opcode.toString(16)} payloadLen=$payloadLen")
+        handleMotoBudsPacketInternal(opcode, payload, data)
+    }
+
     private fun connectRfcomm(initialDelayMs: Long = 0L) {
         connectionJob?.cancel()
-        connectionJob = CoroutineScope(Dispatchers.IO).launch {
+        connectionJob = scope.launch {
             if (initialDelayMs > 0) delay(initialDelayMs)
-            if (!isConnected || !::mDevice.isInitialized) return@launch
+            if (!isConnected || _device == null) return@launch
             closeSocketOnly()
             try {
                 // MotoBuds connection: try standard RFCOMM first, then insecure, then port 16
                 var connected = false
                 try {
-                    val newSocket = createRfcommSocket(mDevice)
+                    val newSocket = createRfcommSocket(device)
                     newSocket.connect()
                     socket = newSocket
                     connected = true
                 } catch (e: IOException) {
                     Log.d(TAG, "Standard RFCOMM failed, trying insecure")
                     try {
-                        val insecureSocket = mDevice.createInsecureRfcommSocketToServiceRecord(MOTOBUDS_RFCOMM_UUID)
+                        val insecureSocket = device.createInsecureRfcommSocketToServiceRecord(MOTOBUDS_RFCOMM_UUID)
                         insecureSocket.connect()
                         socket = insecureSocket
                         connected = true
                     } catch (e2: IOException) {
                         Log.d(TAG, "Insecure RFCOMM failed, trying port 16")
                         try {
-                            val method = mDevice.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
-                            val portSocket = method.invoke(mDevice, 16) as BluetoothSocket
+                            val method = device.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                            val portSocket = method.invoke(device, 16) as BluetoothSocket
                             portSocket.connect()
                             socket = portSocket
                             connected = true
@@ -675,7 +766,8 @@ object RfcommController {
                 RfcommLog.i(mContext, TAG, "connected uuid=$MOTOBUDS_RFCOMM_UUID")
                 changeUIConnectionState("connecting")
 
-                startPacketReader(socket!!.inputStream)
+                val currentSocket = socket ?: throw IOException("Socket closed before read")
+                startPacketReader(currentSocket.inputStream)
 
                 delay(300)
                 sendStatusQueryPackets(immediateReconnect = false)
@@ -693,14 +785,14 @@ object RfcommController {
 
     private fun isAutoReconnectEnabled(): Boolean {
         return try {
-            mPrefs.getBoolean(ConfigManager.PREF_KEY_AUTO_RECONNECT, true)
+            _prefs?.getBoolean(ConfigManager.PREF_KEY_AUTO_RECONNECT, true) ?: true
         } catch (_: Exception) {
             true
         }
     }
 
     private fun scheduleReconnect(reason: String, immediate: Boolean = false) {
-        if (!isConnected || !::mDevice.isInitialized || mContext == null) return
+        if (!isConnected || _device == null || mContext == null) return
         if (!isAutoReconnectEnabled() && !immediate) {
             Log.d(TAG, "auto-reconnect disabled, skipping reconnect for reason=$reason")
             RfcommLog.w(mContext, TAG, "auto-reconnect disabled, skip reason=$reason")
@@ -730,7 +822,7 @@ object RfcommController {
         }
         val attempt = reconnectAttempts.incrementAndGet()
         Log.d(TAG, "schedule RFCOMM reconnect reason=$reason attempt=$attempt delay=${AUTO_RECONNECT_DELAY_MS}ms")
-        reconnectJob = CoroutineScope(Dispatchers.IO).launch {
+        reconnectJob = scope.launch {
             delay(AUTO_RECONNECT_DELAY_MS)
             reconnectJob = null
             reconnectPending = false
@@ -754,7 +846,7 @@ object RfcommController {
 
     private fun startPacketReader(inputStream: InputStream) {
         readerJob?.cancel()
-        readerJob = CoroutineScope(Dispatchers.IO).launch {
+        readerJob = scope.launch {
             val buffer = ByteArray(1024)
             try {
                 while (isConnected) {
@@ -782,7 +874,7 @@ object RfcommController {
 
     @OptIn(ExperimentalStdlibApi::class)
     private fun handleMotoBudsPacket(packet: ByteArray) {
-        Log.v(TAG, "Received: ${packet.toHexString(HexFormat.UpperCase)}")
+        Log.v(TAG, "RFCOMM Received: ${packet.toHexString(HexFormat.UpperCase)}")
         if (packet.size < 14) return
         if (packet[0] != 0x48.toByte() || packet[1] != 0x45.toByte()) return
 
@@ -793,17 +885,24 @@ object RfcommController {
         } else null
 
         Log.d(TAG, "opcode=0x${opcode.toString(16)} payloadLen=$payloadLen")
+        handleMotoBudsPacketInternal(opcode, payload, packet)
+    }
 
+    private fun handleMotoBudsPacketInternal(opcode: Int, payload: ByteArray?, rawPacket: ByteArray) {
         when (opcode) {
             // Battery (query response 0x005 or notification 0x009)
             Cmd.GET_BATTERY_LEVEL, Cmd.BATTERY_LEVEL_CHANGED -> {
                 if (payload != null && payload.size >= 3) {
-                    val left = payload[0].toInt() and 0xFF
-                    val right = payload[1].toInt() and 0xFF
-                    val case = payload[2].toInt() and 0xFF
-                    val leftInfo = if (left != 0xFF) BatteryParser.BatteryInfo(left.coerceIn(0, 100), false) else null
-                    val rightInfo = if (right != 0xFF) BatteryParser.BatteryInfo(right.coerceIn(0, 100), false) else null
-                    val caseInfo = if (case != 0xFF) BatteryParser.BatteryInfo(case.coerceIn(0, 100), false) else null
+                    val leftRaw = payload[0].toInt() and 0xFF
+                    val rightRaw = payload[1].toInt() and 0xFF
+                    val caseRaw = payload[2].toInt() and 0xFF
+                    Log.d(TAG, "Battery raw bytes: [${payload[0]}, ${payload[1]}, ${payload[2]}]")
+                    Log.d(TAG, "Battery raw int: left=$leftRaw right=$rightRaw case=$caseRaw")
+                    Log.d(TAG, "Battery parsed: left=${(leftRaw and 0x7F)}% charging=${(leftRaw and 0x80) != 0} | right=${(rightRaw and 0x7F)}% charging=${(rightRaw and 0x80) != 0} | case=${(caseRaw and 0x7F)}% charging=${(caseRaw and 0x80) != 0}")
+                    val leftInfo = BatteryParser.parseBatteryByte(leftRaw)
+                    val rightInfo = BatteryParser.parseBatteryByte(rightRaw)
+                    val caseInfo = BatteryParser.parseBatteryByte(caseRaw)
+                    Log.d(TAG, "Battery parsed objects: left=$leftInfo right=$rightInfo case=$caseInfo")
                     handleBatteryChanged(BatteryParser.BatteryResult(leftInfo, rightInfo, caseInfo))
                 }
             }
@@ -917,7 +1016,7 @@ object RfcommController {
                 }
             }
             else -> {
-                Log.d(TAG, "Unhandled opcode 0x${opcode.toString(16)}: ${packet.toHexString(HexFormat.UpperCase)}")
+                Log.d(TAG, "Unhandled opcode 0x${opcode.toString(16)}: ${rawPacket.toHexString(HexFormat.UpperCase)}")
             }
         }
     }
@@ -931,6 +1030,7 @@ object RfcommController {
         reconnectPending = false
 
         closeSocketOnly()
+        BleGattTransport.disconnect()
 
         mContext?.let {
             stopRoutesScan()
@@ -963,6 +1063,19 @@ object RfcommController {
 
     private fun sendPacketSafe(packet: ByteArray, requestReason: String? = null) {
         if (requestReason != null) reconnectNowForRequest(requestReason)
+
+        // Try BLE GATT first
+        if (BleGattTransport.isConnected) {
+            try {
+                Log.d(TAG, "BLE/TX: ${packet.toHexString(HexFormat.UpperCase)}")
+                BleGattTransport.sendPacket(packet)
+                return
+            } catch (e: Exception) {
+                Log.e(TAG, "BLE send failed, trying RFCOMM", e)
+            }
+        }
+
+        // Fallback to RFCOMM SPP
         try {
             val currentSocket = socket ?: run {
                 RfcommLog.w(mContext, "RFCOMM/TX", "socket null: ${packet.toHexString(HexFormat.UpperCase)}")
@@ -994,7 +1107,7 @@ object RfcommController {
     fun setGameMode(enabled: Boolean) {
         Log.d(TAG, "setGameMode: $enabled")
         currentGameMode = enabled
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendGameModePackets(enabled, "game mode control")
         }
     }
@@ -1004,7 +1117,7 @@ object RfcommController {
         currentVolumeBoost = enabled
         changeUIVolumeBoostStatus(enabled)
         val packet = if (enabled) Enums.VOLUME_BOOST_ON else Enums.VOLUME_BOOST_OFF
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(packet, "volume boost control")
             delay(350)
             sendStatusQueryPackets(immediateReconnect = false)
@@ -1019,7 +1132,7 @@ object RfcommController {
             opcode = Cmd.SET_HI_RES_MODE,
             payload = payload
         )
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(packet, "hi-res mode control")
             delay(350)
             sendStatusQueryPackets(immediateReconnect = false)
@@ -1072,7 +1185,7 @@ object RfcommController {
         Log.i(TAG, "setSpatialAudioMode: $normalizedMode, packet=${packet.toHexString(HexFormat.UpperCase)}")
         currentSpatialAudioMode = normalizedMode
         changeUISpatialAudioStatus(normalizedMode)
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(packet, "spatial audio control")
         }
     }
@@ -1086,7 +1199,7 @@ object RfcommController {
         Log.i(TAG, "setEqPreset: $presetId, packet=${packet.toHexString(HexFormat.UpperCase)}")
         currentEqPreset = presetId
         changeUIEqPreset(presetId)
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(packet, "eq preset control")
             delay(1000)
             sendPacketSafe(Enums.QUERY_EQ, "eq confirm")
@@ -1098,7 +1211,7 @@ object RfcommController {
         Log.i(TAG, "setDualDeviceConnection: $enabled, packet=${packet.toHexString(HexFormat.UpperCase)}")
         currentDualDeviceConnection = enabled
         changeUIDualDeviceConnectionStatus(enabled)
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(packet, "dual-device connection control")
             delay(1000)
             sendPacketSafe(Enums.QUERY_DUAL_CONNECTION, "dual connection confirm")
@@ -1118,7 +1231,7 @@ object RfcommController {
 
     private fun currentCapabilities(): DeviceCapabilities {
         return detectDeviceCapabilities(
-            deviceName = if (::mDevice.isInitialized) mDevice.name ?: cachedDeviceName else cachedDeviceName,
+            deviceName = _device?.name ?: cachedDeviceName,
             adaptiveOverride = ConfigManager.adaptiveCapabilityOverride(),
             spatialAudioOverride = ConfigManager.spatialAudioCapabilityOverride(),
             spatialSoundSwitchOverride = ConfigManager.spatialSoundSwitchCapabilityOverride(),
@@ -1146,7 +1259,7 @@ object RfcommController {
             }
         }
         changeUIAncStatus(mode)
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(packet, "anc control")
             delay(350)
             sendStatusQueryPackets(immediateReconnect = false)
@@ -1154,7 +1267,7 @@ object RfcommController {
     }
 
     fun queryBattery() {
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendPacketSafe(Enums.QUERY_BATTERY, "battery query")
         }
     }
@@ -1163,7 +1276,7 @@ object RfcommController {
      * Combo query strategy: send batch query (wake + game mode), then battery, then ANC.
      */
     fun queryStatus(immediateReconnect: Boolean = true) {
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             sendStatusQueryPackets(immediateReconnect)
         }
     }
@@ -1228,12 +1341,13 @@ object RfcommController {
             override fun onServiceDisconnected(profile: Int) { }
         }, BluetoothProfile.HEADSET)
 
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             delay(500)
+            val router = _mediaRouter ?: return@launch
             for (route in routes) {
                 if (route.type == MediaRoute2Info.TYPE_BUILTIN_SPEAKER) {
                     Log.d(TAG, "found speaker route $route")
-                    mediaRouter.transferTo(route)
+                    router.transferTo(route)
                 }
             }
         }
@@ -1260,10 +1374,13 @@ object RfcommController {
             override fun onServiceDisconnected(profile: Int) { }
         }, BluetoothProfile.HEADSET)
 
-        for (route in routes) {
-            if (route.type == MediaRoute2Info.TYPE_BLUETOOTH_A2DP && route.name == device!!.name) {
-                Log.d(TAG, "found bt route $route")
-                mediaRouter.transferTo(route)
+        val router = _mediaRouter
+        if (router != null) {
+            for (route in routes) {
+                if (route.type == MediaRoute2Info.TYPE_BLUETOOTH_A2DP && route.name == device?.name) {
+                    Log.d(TAG, "found bt route $route")
+                    router.transferTo(route)
+                }
             }
         }
 
@@ -1274,8 +1391,9 @@ object RfcommController {
 
     fun setRegularBatteryLevel(level: Int) {
         try {
+            val d = _device ?: return
             val service = getObjectField(mContext, "mAdapterService")
-            callMethod(service, "setBatteryLevel", mDevice, level, false)
+            callMethod(service, "setBatteryLevel", d, level, false)
         } catch (e: Exception) {
             Log.e(TAG, "setRegularBatteryLevel failed", e)
         }

@@ -230,7 +230,11 @@ object MiLinkServiceHook : HookContext() {
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isOppoAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val result = name.contains("moto", ignoreCase = true) || name.contains("guitar", ignoreCase = true)
+        val nameLower = name.lowercase()
+        // Only match MotoBuds earphones, exclude speakers and other devices
+        val result = (nameLower.contains("moto") && nameLower.contains("buds")) ||
+                    nameLower.contains("guitar") ||
+                    nameLower.contains("xt2443")
         if (result && address != null) {
             knownOppoAddresses.add(address.uppercase())
             currentAddress = address

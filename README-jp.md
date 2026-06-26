@@ -10,7 +10,7 @@
 [![Framework](https://img.shields.io/badge/Framework-LSPosed-blueviolet?style=for-the-badge&logo=github)](https://github.com/LSPosed/LSPosed)
 [![ROM](https://img.shields.io/badge/ROM-HyperOS%203-orange?style=for-the-badge&logo=xiaomi)](https://hyperos.mi.com)
 [![License](https://img.shields.io/badge/License-GPL--3.0-red?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
 
 <br/>
 
@@ -172,20 +172,12 @@ A: Bluetooth 接続が安定していることを確認してください。モ�
 
 <table>
 <tr>
-<td align="center"><img src="docs/微信图片_20260625080850_72_9.jpg" width="270" style="border-radius: 12px;" alt="ヘッドセットページ"/></td>
-<td align="center"><img src="docs/微信图片_20260625083102_77_9.jpg" width="270" style="border-radius: 12px;" alt="モジュールページ"/></td>
+<td align="center"><img src="docs/earphone_page.jpg" width="270" style="border-radius: 12px;" alt="ヘッドセットページ"/></td>
+<td align="center"><img src="docs/module_page.jpg" width="270" style="border-radius: 12px;" alt="モジュールページ"/></td>
 </tr>
 <tr>
 <td align="center">🎧 ヘッドセットページ</td>
 <td align="center">🏠 モジュールページ</td>
-</tr>
-<tr>
-<td align="center"><img src="docs/微信图片_20260625080853_74_9.jpg" width="270" style="border-radius: 12px;" alt="milinkエミュレートデバイス"/></td>
-<td align="center"><img src="docs/微信图片_20260625080855_75_9.jpg" width="270" style="border-radius: 12px;" alt="クイックポップアップ"/></td>
-</tr>
-<tr>
-<td align="center">📱 milink エミュレートデバイス</td>
-<td align="center">⚡ クイックポップアップ</td>
 </tr>
 </table>
 

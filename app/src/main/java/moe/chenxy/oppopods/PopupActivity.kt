@@ -191,8 +191,9 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                         }
                     }
                     OppoPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
-                        batteryParams.value =
-                            p1.getParcelableExtra("status", BatteryParams::class.java)!!
+                        p1.getParcelableExtra("status", BatteryParams::class.java)?.let {
+                            batteryParams.value = it
+                        }
                     }
                     OppoPodsAction.ACTION_PODS_CONNECTED -> {
                         deviceName.value = p1.getStringExtra("device_name") ?: ""
