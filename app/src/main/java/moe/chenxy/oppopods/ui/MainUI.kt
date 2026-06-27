@@ -883,17 +883,11 @@ fun MainUI(
                         accentMode = accentMode,
                         onAccentModeChange = onAccentModeChange,
                         floatingBottomBar = floatingBottomBar,
-                        onFloatingBottomBarChange = {
-                            floatingBottomBar.value = it
-                        },
+                        onFloatingBottomBarChange = onFloatingBottomBarChange,
                         blurBottomBar = blurBottomBar,
-                        onBlurBottomBarChange = {
-                            blurBottomBar.value = it
-                        },
+                        onBlurBottomBarChange = onBlurBottomBarChange,
                         liquidGlassEnabled = liquidGlassEnabled,
-                        onLiquidGlassChange = {
-                            liquidGlassEnabled.value = it
-                        },
+                        onLiquidGlassChange = onLiquidGlassChange,
                     )
                 }
             }

@@ -77,18 +77,6 @@ fun ThemeSettingsPage(
                     checked = floatingBottomBar.value,
                     onCheckedChange = { onFloatingBottomBarChange(it) },
                 )
-                SwitchPreference(
-                    title = stringResource(R.string.blur_bottom_bar),
-                    summary = stringResource(R.string.blur_bottom_bar_summary),
-                    checked = blurBottomBar.value,
-                    onCheckedChange = { onBlurBottomBarChange(it) },
-                )
-                SwitchPreference(
-                    title = stringResource(R.string.liquid_glass),
-                    summary = stringResource(R.string.liquid_glass_summary),
-                    checked = liquidGlassEnabled.value,
-                    onCheckedChange = { onLiquidGlassChange(it) },
-                )
             }
         }
     }

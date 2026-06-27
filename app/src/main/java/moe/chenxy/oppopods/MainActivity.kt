@@ -39,8 +39,8 @@ class MainActivity : ComponentActivity() {
             val themeMode = remember { mutableStateOf(prefs.getInt("theme_mode", 0)) }
             val accentMode = remember { mutableStateOf(prefs.getInt("accent_mode", 0)) }
             val floatingBottomBar = remember { mutableStateOf(prefs.getBoolean("floating_bottom_bar", false)) }
-            val blurBottomBar = remember { mutableStateOf(prefs.getBoolean("blur_bottom_bar", false)) }
-            val liquidGlassEnabled = remember { mutableStateOf(prefs.getBoolean("liquid_glass_enabled", false)) }
+            val blurBottomBar = remember { mutableStateOf(true) }
+            val liquidGlassEnabled = remember { mutableStateOf(true) }
             val appLanguage = remember { mutableStateOf(prefs.getInt("app_language", AppLocale.SYSTEM)) }
             val systemDark = isSystemInDarkTheme()
             val darkMode = when (themeMode.value) {
@@ -77,15 +77,11 @@ class MainActivity : ComponentActivity() {
                     prefs.edit().putBoolean("floating_bottom_bar", it).apply()
                 },
                 blurBottomBar = blurBottomBar,
-                onBlurBottomBarChange = {
-                    blurBottomBar.value = it
-                    prefs.edit().putBoolean("blur_bottom_bar", it).apply()
-                },
+                onBlurBottomBarChange = {},
+                
                 liquidGlassEnabled = liquidGlassEnabled,
-                onLiquidGlassChange = {
-                    liquidGlassEnabled.value = it
-                    prefs.edit().putBoolean("liquid_glass_enabled", it).apply()
-                },
+                onLiquidGlassChange = {},
+                
                 appLanguage = appLanguage,
                 onAppLanguageChange = {
                     appLanguage.value = it
