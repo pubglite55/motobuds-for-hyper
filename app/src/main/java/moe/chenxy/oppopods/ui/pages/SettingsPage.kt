@@ -71,10 +71,9 @@ fun SettingsPage(
         stringResource(R.string.log_level_basic),
         stringResource(R.string.log_level_debug),
     )
-    val islandModeValues = listOf(ConfigManager.ISLAND_MODE_NONE, ConfigManager.ISLAND_MODE_OFFICIAL, ConfigManager.ISLAND_MODE_MODULE)
+    val islandModeValues = listOf(ConfigManager.ISLAND_MODE_NONE, ConfigManager.ISLAND_MODE_MODULE)
     val islandModeOptions = listOf(
         stringResource(R.string.island_mode_none),
-        stringResource(R.string.island_mode_official),
         stringResource(R.string.island_mode_module),
     )
     val islandShowTimingOptions = listOf(

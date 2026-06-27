@@ -20,7 +20,7 @@ import kotlinx.serialization.json.Json
 data class AppConfig(
     val fakeDeviceId: String = ConfigManager.DEFAULT_FAKE_DEVICE_ID,
     val logLevel: Int = ConfigManager.LOG_LEVEL_BASIC,
-    val islandMode: Int = ConfigManager.ISLAND_MODE_OFFICIAL,
+    val islandMode: Int = ConfigManager.ISLAND_MODE_MODULE,
     val islandShowTimings: Set<Int> = emptySet(),
     val notificationClickAction: Int = ConfigManager.NOTIFICATION_CLICK_MODULE_POPUP,
     val moreClickAction: Int = ConfigManager.MORE_CLICK_MODULE,
