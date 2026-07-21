@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         applicationId = "com.xiuxiu391.motobuds"
-        minSdk = 35
+        minSdk = 33
         targetSdk = 36
         versionCode = 4
         versionName = "1.3.1"
