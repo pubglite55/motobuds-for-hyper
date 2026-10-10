@@ -11,6 +11,8 @@
 [![ROM](https://img.shields.io/badge/ROM-HyperOS%203-orange?style=for-the-badge&logo=xiaomi)](https://hyperos.mi.com)
 [![License](https://img.shields.io/badge/License-GPL--3.0-red?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge)](https://github.com/pubglite55/motobuds-for-hyper/releases)
+[![Stars](https://img.shields.io/github/stars/pubglite55/motobuds-for-hyper?style=for-the-badge&logo=github)](https://github.com/pubglite55/motobuds-for-hyper/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/pubglite55/motobuds-for-hyper?style=for-the-badge&logo=git&logoColor=white)](https://github.com/pubglite55/motobuds-for-hyper/commits/main)
 
 <br/>
 
