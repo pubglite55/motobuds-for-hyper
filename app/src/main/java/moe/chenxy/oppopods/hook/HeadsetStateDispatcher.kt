@@ -17,6 +17,8 @@ import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 
 object HeadsetStateDispatcher : HookContext() {
     private var appRequestReceiverRegistered = false
+    private var appRequestReceiver: BroadcastReceiver? = null
+    private var appRequestReceiverContext: Context? = null
 
     override fun onHook() {
         // Register receiver immediately when module loads
@@ -65,9 +67,18 @@ object HeadsetStateDispatcher : HookContext() {
         }
     }
 
+    override fun onHotReloading() {
+        appRequestReceiverContext?.let { ctx ->
+            appRequestReceiver?.let { receiver -> runCatching { ctx.unregisterReceiver(receiver) } }
+        }
+        appRequestReceiver = null
+        appRequestReceiverContext = null
+        appRequestReceiverRegistered = false
+    }
+
     private fun registerAppRequestReceiver(context: Context?) {
         if (context == null || appRequestReceiverRegistered) return
-        context.registerReceiver(object : BroadcastReceiver() {
+        val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (context == null) return
                 when (intent?.action) {
@@ -92,12 +103,16 @@ object HeadsetStateDispatcher : HookContext() {
                     }
                 }
             }
-        }, IntentFilter().apply {
+        }
+        val filter = IntentFilter().apply {
             addAction(OppoPodsAction.ACTION_PODS_UI_INIT)
             addAction(OppoPodsAction.ACTION_REFRESH_STATUS)
             addAction(OppoPodsAction.ACTION_CONNECT_POD_REQUEST)
             addAction(OppoPodsAction.ACTION_DISCONNECT_POD_REQUEST)
-        }, Context.RECEIVER_EXPORTED)
+        }
+        context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        appRequestReceiver = receiver
+        appRequestReceiverContext = context.applicationContext ?: context
         appRequestReceiverRegistered = true
     }
 
@@ -137,7 +152,8 @@ object HeadsetStateDispatcher : HookContext() {
      */
     @SuppressLint("MissingPermission")
     fun isOppoPod(device: BluetoothDevice): Boolean {
-        val name = device.name?.lowercase() ?: return false
+        // A17 may not expose the advertised name; the user-set alias is the next best signal.
+        val name = (device.name ?: device.alias)?.lowercase() ?: return false
         // Only match MotoBuds earphones, exclude speakers and other devices
         return (name.contains("moto") && name.contains("buds")) ||
                name.contains("guitar") ||

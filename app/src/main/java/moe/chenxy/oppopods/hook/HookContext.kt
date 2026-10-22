@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import java.lang.reflect.Constructor
+import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import moe.chenxy.oppopods.config.ConfigManager
 
@@ -13,7 +14,23 @@ abstract class HookContext {
     lateinit var prefs: SharedPreferences
     lateinit var packageName: String
 
+    private val hookHandles = mutableListOf<XposedInterface.HookHandle>()
+
     abstract fun onHook()
+
+    /**
+     * Releases resources retained by target-process objects (receivers, handlers, caches)
+     * before the module is hot reloaded. Required by libxposed API 102.
+     */
+    open fun onHotReloading() = Unit
+
+    fun hookIds(): Set<String> {
+        return if (module.getApiVersion() >= XposedInterface.API_102) {
+            hookHandles.mapNotNullTo(linkedSetOf()) { it.id }
+        } else {
+            emptySet()
+        }
+    }
 
     fun fakeDeviceId(): String = ConfigManager.fakeDeviceId()
 
@@ -21,6 +38,14 @@ abstract class HookContext {
 
     fun refreshConfig() {
         ConfigManager.refreshFromPrefs(prefs)
+    }
+
+    fun reloadRemotePrefs() {
+        runCatching {
+            prefs.javaClass.methods.firstOrNull {
+                it.name == "reload" && it.parameterTypes.isEmpty()
+            }?.invoke(prefs)
+        }
     }
 
     fun findClass(name: String): Class<*> = Class.forName(name, false, appClassLoader)
@@ -40,23 +65,37 @@ abstract class HookContext {
             .apply { isAccessible = true }
 
     fun hookAfter(method: Method, block: HookParam.() -> Unit) {
-        module.hook(method).intercept { chain ->
+        registerHook(method, "after") { chain ->
             val result = chain.proceed()
             HookParam(chain, result).apply(block).result
         }
     }
 
     fun hookBefore(method: Method, block: HookParam.() -> Unit) {
-        module.hook(method).intercept { chain ->
+        registerHook(method, "before") { chain ->
             val param = HookParam(chain, null).apply(block)
             if (param.hasResult) param.result else chain.proceed()
         }
     }
 
     fun hookConstructorAfter(constructor: Constructor<*>, block: HookParam.() -> Unit) {
-        module.hook(constructor).intercept { chain ->
+        registerHook(constructor, "constructor-after") { chain ->
             chain.proceed().also { HookParam(chain, it).apply(block) }
         }
+    }
+
+    /**
+     * Registers a hook with a stable id so API 102 hot reload can tell which hooks the reloaded
+     * module still owns. On API 101 frameworks the id is not set and the hook is registered
+     * exactly like before.
+     */
+    private fun registerHook(executable: Executable, phase: String, hooker: XposedInterface.Hooker) {
+        val id = "$phase:${executable.toGenericString()}"
+        val builder = module.hook(executable)
+        if (module.getApiVersion() >= XposedInterface.API_102) {
+            builder.setId(id)
+        }
+        hookHandles += builder.intercept(hooker)
     }
 }
 

@@ -31,6 +31,8 @@ class BluetoothUpstreamHeadsetHook : HookContext() {
     private var lastOppoDevice: BluetoothDevice? = null
     private var context: Context? = null
     private var receiverRegistered = false
+    private var statusReceiver: BroadcastReceiver? = null
+    private var statusReceiverContext: Context? = null
     private var currentBattery: BatteryParams? = null
     private var currentAnc = 1
     private var currentTransparencyVocalEnhancement = false
@@ -157,6 +159,19 @@ class BluetoothUpstreamHeadsetHook : HookContext() {
         return runCatching { findClass(className) }.getOrNull()
     }
 
+    override fun onHotReloading() {
+        statusReceiverContext?.let { ctx ->
+            statusReceiver?.let { receiver -> runCatching { ctx.unregisterReceiver(receiver) } }
+        }
+        statusReceiver = null
+        statusReceiverContext = null
+        receiverRegistered = false
+        callbacks.clear()
+        hookedBinderClasses.clear()
+        handler.removeCallbacksAndMessages(null)
+        lastOppoDevice = null
+    }
+
     private fun registerStatusReceiver(ctx: Context?) {
         if (ctx == null || receiverRegistered) return
         context = ctx.applicationContext ?: ctx
@@ -168,7 +183,7 @@ class BluetoothUpstreamHeadsetHook : HookContext() {
             addAction(OppoPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
             addAction(OppoPodsAction.ACTION_CONFIG_CHANGED)
         }
-        context?.registerReceiver(object : BroadcastReceiver() {
+        val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     OppoPodsAction.ACTION_CONFIG_CHANGED -> {
@@ -203,7 +218,10 @@ class BluetoothUpstreamHeadsetHook : HookContext() {
                 Log.d(TAG, "state action=${intent?.action} address=$currentAddress name=$currentName anc=$currentAnc battery=${currentBattery.debugString()}")
                 notifyRealStatus("broadcast:${intent?.action}")
             }
-        }, filter, Context.RECEIVER_EXPORTED)
+        }
+        context?.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        statusReceiver = receiver
+        statusReceiverContext = context
         receiverRegistered = true
         context?.sendBroadcast(Intent(OppoPodsAction.ACTION_REFRESH_STATUS).apply {
             setPackage("com.android.bluetooth")

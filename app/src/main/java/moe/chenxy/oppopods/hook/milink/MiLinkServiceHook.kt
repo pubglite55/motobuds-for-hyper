@@ -33,6 +33,8 @@ object MiLinkServiceHook : HookContext() {
     internal var currentSpatialAudioMode = ConfigManager.SPATIAL_AUDIO_OFF
     internal var lastAncBatteryController: Any? = null
     internal var lastProfileContext: Any? = null
+    private var statusReceiver: BroadcastReceiver? = null
+    private var statusReceiverContext: Context? = null
     private val spatialAudioHook = MiLinkSpatialAudioHook(this)
 
     override fun onHook() {
@@ -183,7 +185,7 @@ object MiLinkServiceHook : HookContext() {
             addAction(OppoPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
             addAction(OppoPodsAction.ACTION_CONFIG_CHANGED)
         }
-        context?.registerReceiver(object : BroadcastReceiver() {
+        val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     OppoPodsAction.ACTION_CONFIG_CHANGED -> {
@@ -218,12 +220,26 @@ object MiLinkServiceHook : HookContext() {
                     }
                 }
             }
-        }, filter, Context.RECEIVER_EXPORTED)
+        }
+        context?.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        statusReceiver = receiver
+        statusReceiverContext = context
         receiverRegistered = true
         context?.sendBroadcast(Intent(OppoPodsAction.ACTION_PODS_UI_INIT).apply {
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         })
+    }
+
+    override fun onHotReloading() {
+        statusReceiverContext?.let { ctx ->
+            statusReceiver?.let { receiver -> runCatching { ctx.unregisterReceiver(receiver) } }
+        }
+        statusReceiver = null
+        statusReceiverContext = null
+        receiverRegistered = false
+        lastAncBatteryController = null
+        lastProfileContext = null
     }
 
     internal fun isOppoPod(device: BluetoothDevice): Boolean {

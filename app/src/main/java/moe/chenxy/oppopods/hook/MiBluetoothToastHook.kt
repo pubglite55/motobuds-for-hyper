@@ -13,6 +13,7 @@ import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.os.Bundle
+import android.os.Looper
 import com.xzakota.hyper.notification.focus.FocusNotification
 import moe.chenxy.oppopods.utils.FocusIslandUtil
 import moe.chenxy.oppopods.utils.PodImageLoader
@@ -31,6 +32,15 @@ object MiBluetoothToastHook : HookContext() {
     // ANC 模式本地缓存，用于循环切换和状态同步（1=关 2=降噪 3=通透 4=自适应）
     // 通过接收 ACTION_PODS_ANC_CHANGED 广播与 RfcommController 保持同步
     private var localAncMode = 1
+
+    private var notificationReceiver: BroadcastReceiver? = null
+    private var notificationReceiverContext: Context? = null
+    private var notificationReceiverRegistered = false
+
+    private companion object {
+        const val NOTIFICATION_CLASS = "com.android.bluetooth.ble.app.MiuiBluetoothNotification"
+        const val TAG_TOAST = "MotoBuds-Notification"
+    }
 
     override fun onHook() {
 
@@ -240,10 +250,11 @@ object MiBluetoothToastHook : HookContext() {
         }
 
 
-        hookConstructorAfter(findConstructorByParamCount("com.android.bluetooth.ble.app.MiuiBluetoothNotification", 2)) {
-            val context = getObjectField(instance, "mContext") as Context
+        fun initializeNotificationReceiver(instance: Any?) {
+            val context = getObjectField(instance, "mContext") as? Context ?: return
+            if (notificationReceiverRegistered) return
 
-                    val broadcastReceiver = object : BroadcastReceiver() {
+            val broadcastReceiver = object : BroadcastReceiver() {
                         override fun onReceive(p0: Context?, p1: Intent?) {
                             if (p1?.action == "xiuxiu.action.motobuds.sendstrongtoast") {
                                 if (ConfigManager.islandMode() != ConfigManager.ISLAND_MODE_MODULE) {
@@ -296,9 +307,51 @@ object MiBluetoothToastHook : HookContext() {
                     intentFilter.addAction(OppoPodsAction.ACTION_CYCLE_ANC)
                     // 监听耳机实际 ANC 状态变更广播，保持 localAncMode 与 RfcommController 同步
                     intentFilter.addAction(OppoPodsAction.ACTION_PODS_ANC_CHANGED)
-                    context.registerReceiver(broadcastReceiver, intentFilter,
-                        Context.RECEIVER_EXPORTED)
+            context.registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_EXPORTED)
+            notificationReceiver = broadcastReceiver
+            notificationReceiverContext = context.applicationContext ?: context
+            notificationReceiverRegistered = true
         }
+
+        // HyperOS 4 / Android 17 keeps two MiuiBluetoothNotification constructors in the ROM and
+        // picks one at runtime (mibt_memory_trim), so match complete signatures instead of
+        // relying on the unstable order of getDeclaredConstructors().
+        var notificationHookInstalled = false
+        fun hookNotificationConstructor(vararg parameterTypes: Class<*>) {
+            val signature = parameterTypes.joinToString { it.name }
+            runCatching {
+                hookConstructorAfter(findConstructor(NOTIFICATION_CLASS, *parameterTypes)) {
+                    initializeNotificationReceiver(instance)
+                }
+                notificationHookInstalled = true
+                Log.d(TAG_TOAST, "hooked $NOTIFICATION_CLASS($signature)")
+            }.onFailure {
+                Log.w(TAG_TOAST, "hook $NOTIFICATION_CLASS($signature) skipped", it)
+            }
+        }
+
+        hookNotificationConstructor(Context::class.java, Looper::class.java)
+        runCatching { findClass("com.android.bluetooth.ble.app.headset.BluetoothHeadsetService") }
+            .onSuccess { serviceClass -> hookNotificationConstructor(Looper::class.java, serviceClass) }
+            .onFailure { Log.w(TAG_TOAST, "BluetoothHeadsetService class not available", it) }
+
+        if (!notificationHookInstalled) {
+            // Pre-A17 builds only expose a two-argument constructor with an unknown shape.
+            runCatching {
+                hookConstructorAfter(findConstructorByParamCount(NOTIFICATION_CLASS, 2)) {
+                    initializeNotificationReceiver(instance)
+                }
+            }.onFailure { Log.w(TAG_TOAST, "fallback notification constructor hook skipped", it) }
+        }
+    }
+
+    override fun onHotReloading() {
+        notificationReceiverContext?.let { ctx ->
+            notificationReceiver?.let { receiver -> runCatching { ctx.unregisterReceiver(receiver) } }
+        }
+        notificationReceiver = null
+        notificationReceiverContext = null
+        notificationReceiverRegistered = false
     }
 
     private fun Int.floorMod(divisor: Int): Int = ((this % divisor) + divisor) % divisor
