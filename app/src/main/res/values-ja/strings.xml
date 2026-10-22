@@ -141,4 +141,22 @@
     <string name="blur_bottom_bar_summary">ボトムナビゲーションにぼかし効果を適用</string>
     <string name="liquid_glass">リキッドグラス</string>
     <string name="liquid_glass_summary">ボトムバーにリキッドグラス効果を有効にする</string>
+    <string name="pod_tools_title">イヤホンツール</string>
+    <string name="pod_tools_device_info">デバイス情報</string>
+    <string name="pod_tools_unknown_model">未検出</string>
+    <string name="pod_tools_features">対応機能</string>
+    <string name="pod_tools_eq">カスタムイコライザー</string>
+    <string name="pod_tools_eq_apply">適用</string>
+    <string name="pod_tools_eq_query">読み取り</string>
+    <string name="pod_tools_eq_reset">リセット</string>
+    <string name="pod_tools_fit_test">フィットテスト</string>
+    <string name="pod_tools_fit_start">開始</string>
+    <string name="pod_tools_fit_stop">停止</string>
+    <string name="pod_tools_fit_left">左</string>
+    <string name="pod_tools_fit_right">右</string>
+    <string name="pod_tools_fit_good">良好</string>
+    <string name="pod_tools_fit_adjust">調整が必要</string>
+    <string name="pod_tools_find_my_device">デバイスを探す</string>
+    <string name="pod_tools_fmd_left">左を鳴らす</string>
+    <string name="pod_tools_fmd_right">右を鳴らす</string>
 </resources>

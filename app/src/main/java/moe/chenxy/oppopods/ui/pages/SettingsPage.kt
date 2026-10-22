@@ -50,6 +50,7 @@ fun SettingsPage(
     spatialAudioCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     spatialSoundSwitchCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     onOpenDeviceCapabilities: () -> Unit = {},
+    onOpenPodTools: () -> Unit = {},
     fakeDeviceId: MutableState<String> = mutableStateOf(ConfigManager.DEFAULT_FAKE_DEVICE_ID),
     onFakeDeviceIdChange: (String) -> Unit = {},
     onOpenTheme: () -> Unit = {},
@@ -185,6 +186,11 @@ fun SettingsPage(
                     title = stringResource(R.string.device_capabilities),
                     summary = deviceCapabilitySummary,
                     onClick = onOpenDeviceCapabilities,
+                )
+                BasicComponent(
+                    title = stringResource(R.string.pod_tools_title),
+                    summary = stringResource(R.string.pod_tools_device_info),
+                    onClick = onOpenPodTools,
                 )
                 OverlayDropdownPreference(
                     title = stringResource(R.string.island_mode),

@@ -101,6 +101,13 @@ object RfcommController {
     @Volatile private var currentTransparencyVocalEnhancement: Boolean = false
     @Volatile private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
     @Volatile private var currentEqPreset: Int = -1
+    @Volatile private var currentCustomEq: FloatArray? = null
+    @Volatile private var currentModelId: String? = null
+    @Volatile private var currentHiResMode: Boolean = false
+    @Volatile private var currentFitLeft: Int? = null
+    @Volatile private var currentFitRight: Int? = null
+    @Volatile private var currentFmdLeft: Boolean = false
+    @Volatile private var currentFmdRight: Boolean = false
     @Volatile private var currentDualDeviceConnection: Boolean = false
     @Volatile private var currentInEarLeft: Boolean = false
     @Volatile private var currentInEarRight: Boolean = false
@@ -312,6 +319,19 @@ object RfcommController {
             OppoPodsAction.ACTION_DUAL_DEVICE_CONNECTION_SET -> {
                 val enabled = intent.getBooleanExtra("enabled", false)
                 setDualDeviceConnection(enabled)
+            }
+            OppoPodsAction.ACTION_CUSTOM_EQ_SET -> {
+                intent.getFloatArrayExtra("bands")?.let { setCustomEq(it) }
+            }
+            OppoPodsAction.ACTION_CUSTOM_EQ_QUERY -> queryCustomEq()
+            OppoPodsAction.ACTION_FIT_TEST_SET -> {
+                setFitTest(intent.getBooleanExtra("start", true))
+            }
+            OppoPodsAction.ACTION_FMD_SET -> {
+                setFindMyDevice(
+                    left = intent.getBooleanExtra("left", false),
+                    right = intent.getBooleanExtra("right", false),
+                )
             }
             OppoPodsAction.ACTION_CYCLE_ANC -> {
                 cycleAnc()
@@ -585,6 +605,10 @@ object RfcommController {
                 this.addAction(OppoPodsAction.ACTION_RFCOMM_LOG_DISCONNECT)
                 this.addAction(OppoPodsAction.ACTION_RFCOMM_LOG_CLEAR)
                 this.addAction(OppoPodsAction.ACTION_RFCOMM_DEBUG_SEND)
+                this.addAction(OppoPodsAction.ACTION_CUSTOM_EQ_SET)
+                this.addAction(OppoPodsAction.ACTION_CUSTOM_EQ_QUERY)
+                this.addAction(OppoPodsAction.ACTION_FIT_TEST_SET)
+                this.addAction(OppoPodsAction.ACTION_FMD_SET)
             }, Context.RECEIVER_EXPORTED)
             receiverRegistered = true
         }
@@ -963,6 +987,7 @@ object RfcommController {
                     val raw = if (payload.size >= 2) payload[1].toInt() and 0xFF else payload[0].toInt() and 0xFF
                     val enabled = raw == 0x01
                     Log.d(TAG, "Hi-res mode received: $enabled")
+                    currentHiResMode = enabled
                     changeUIHiResModeStatus(enabled)
                 }
             }
@@ -1017,6 +1042,43 @@ object RfcommController {
                     val right = payload.getOrNull(1)?.toInt()?.and(0xFF) ?: left
                     currentInCase = left != 0 || right != 0
                     Log.d(TAG, "In-case status: left=$left right=$right")
+                }
+            }
+            // Profile version / firmware info: carries the model id used for feature gating
+            Cmd.GET_PROFILE_VERSION -> parseProfileVersion(payload)
+            // Custom EQ (0x0305 read / 0x0306 write), 173-byte payload
+            Cmd.GET_CUSTOM_EQ, Cmd.SET_CUSTOM_EQ -> {
+                val bands = payload?.let { MotoBudsCustomEq.parsePayload(it) }
+                if (bands != null) {
+                    currentCustomEq = bands
+                    Log.d(TAG, "Custom EQ: " + bands.joinToString())
+                    changeUICustomEq(bands)
+                }
+            }
+            // Fit test result: [left, right], 0x01 = good fit
+            Cmd.FIT_STATUS_CHANGED -> {
+                if (payload != null && payload.size >= 2) {
+                    currentFitLeft = payload[0].toInt() and 0xFF
+                    currentFitRight = payload[1].toInt() and 0xFF
+                    Log.d(TAG, "Fit test result: left=" + currentFitLeft + " right=" + currentFitRight)
+                    sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_FIT_TEST_RESULT) {
+                        putExtra("left", currentFitLeft)
+                        putExtra("right", currentFitRight)
+                    }
+                }
+            }
+            // Find my device / ring state
+            Cmd.FIND_MY_DEVICE, Cmd.FIND_MY_DEVICE_STATE_NOTIFICATION -> {
+                if (payload != null && payload.isNotEmpty()) {
+                    val left = (payload[0].toInt() and 0xFF) != 0
+                    val rightRaw = payload.getOrNull(1)?.toInt()?.and(0xFF) ?: (payload[0].toInt() and 0xFF)
+                    val right = rightRaw != 0
+                    currentFmdLeft = left
+                    currentFmdRight = right
+                    sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_FMD_CHANGED) {
+                        putExtra("left", left)
+                        putExtra("right", right)
+                    }
                 }
             }
             // Toggle configs response (0x100)
@@ -1117,7 +1179,19 @@ object RfcommController {
     fun setGameMode(enabled: Boolean) {
         Log.d(TAG, "setGameMode: $enabled")
         currentGameMode = enabled
+        changeUIGameModeStatus(enabled)
         scope.launch {
+            if (enabled && currentHiResMode) {
+                // Hi-Res (LDAC) and game mode are mutually exclusive on Moto Buds.
+                Log.d(TAG, "Game mode enabled: turning Hi-Res off first")
+                currentHiResMode = false
+                changeUIHiResModeStatus(false)
+                sendPacketSafe(
+                    MotoBudsPackets.buildPacket(Cmd.SET_HI_RES_MODE, payload = byteArrayOf(0x00)),
+                    "hi-res off for game mode",
+                )
+                delay(200)
+            }
             sendGameModePackets(enabled, "game mode control")
         }
     }
@@ -1136,6 +1210,7 @@ object RfcommController {
 
     fun setHiResMode(enabled: Boolean) {
         Log.d(TAG, "setHiResMode: $enabled")
+        currentHiResMode = enabled
         changeUIHiResModeStatus(enabled)
         val payload = byteArrayOf(if (enabled) 0x01 else 0x00)
         val packet = MotoBudsPackets.buildPacket(
@@ -1143,6 +1218,14 @@ object RfcommController {
             payload = payload
         )
         scope.launch {
+            if (enabled && currentGameMode) {
+                // Hi-Res (LDAC) and game mode are mutually exclusive on Moto Buds.
+                Log.d(TAG, "Hi-Res enabled: turning game mode off first")
+                currentGameMode = false
+                changeUIGameModeStatus(false)
+                sendGameModePackets(false, "game mode off for hi-res")
+                delay(200)
+            }
             sendPacketSafe(packet, "hi-res mode control")
             delay(350)
             sendStatusQueryPackets(immediateReconnect = false)
@@ -1216,6 +1299,44 @@ object RfcommController {
         }
     }
 
+    fun setCustomEq(bands: FloatArray) {
+        val normalized = FloatArray(MotoBudsCustomEq.BAND_COUNT) { index ->
+            (bands.getOrElse(index) { 0f }).coerceIn(-3f, 3f)
+        }
+        currentCustomEq = normalized
+        Log.i(TAG, "setCustomEq: " + normalized.joinToString())
+        changeUICustomEq(normalized)
+        scope.launch {
+            sendPacketSafe(MotoBudsCommands.customEq(normalized), "custom eq set")
+            delay(400)
+            sendPacketSafe(MotoBudsCommands.queryCustomEq(), "custom eq confirm")
+        }
+    }
+
+    fun queryCustomEq() {
+        scope.launch { sendPacketSafe(MotoBudsCommands.queryCustomEq(), "custom eq query") }
+    }
+
+    fun setFitTest(start: Boolean) {
+        if (start) {
+            currentFitLeft = null
+            currentFitRight = null
+        }
+        Log.i(TAG, "setFitTest: start=$start")
+        scope.launch { sendPacketSafe(MotoBudsCommands.fitTest(start), "fit test") }
+    }
+
+    fun setFindMyDevice(left: Boolean, right: Boolean) {
+        currentFmdLeft = left
+        currentFmdRight = right
+        Log.i(TAG, "setFindMyDevice: left=$left right=$right")
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_FMD_CHANGED) {
+            putExtra("left", left)
+            putExtra("right", right)
+        }
+        scope.launch { sendPacketSafe(MotoBudsCommands.findMyDevice(left, right), "find my device") }
+    }
+
     fun setDualDeviceConnection(enabled: Boolean) {
         val packet = Enums.dualDeviceConnectionPacket(enabled)
         Log.i(TAG, "setDualDeviceConnection: $enabled, packet=${packet.toHexString(HexFormat.UpperCase)}")
@@ -1246,7 +1367,38 @@ object RfcommController {
             spatialAudioOverride = ConfigManager.spatialAudioCapabilityOverride(),
             spatialSoundSwitchOverride = ConfigManager.spatialSoundSwitchCapabilityOverride(),
             ancImplementationOverride = ConfigManager.ancImplementationCapabilityOverride(),
+            modelId = currentModelId,
         )
+    }
+
+    private fun changeUICustomEq(bands: FloatArray) {
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CUSTOM_EQ_CHANGED) {
+            putExtra("bands", bands)
+        }
+    }
+
+    /**
+     * 0x0000 returns the firmware/profile blob; the ASCII part carries the model id (XT####-#)
+     * which drivers the feature table in [DeviceModelRegistry].
+     */
+    private fun parseProfileVersion(payload: ByteArray?) {
+        if (payload == null || payload.isEmpty()) return
+        val text = buildString {
+            payload.forEach { byte ->
+                val value = byte.toInt() and 0xFF
+                if (value in 0x20..0x7E) append(value.toChar())
+            }
+        }
+        val modelId = Regex("XT[0-9]{4}-[0-9]").find(text)?.value
+        if (modelId != null) currentModelId = modelId
+        val model = DeviceModelRegistry.find(modelId = modelId ?: currentModelId, deviceName = cachedDeviceName)
+        Log.i(TAG, "Profile version: modelId=$modelId model=" + (model?.marketName ?: "unknown") + " text=" + text)
+        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_DEVICE_INFO_CHANGED) {
+            putExtra("model_id", modelId ?: currentModelId)
+            putExtra("model_name", model?.marketName)
+            putExtra("internal_name", model?.internalName)
+            putExtra("features", model?.features?.toIntArray() ?: IntArray(0))
+        }
     }
 
     private fun Int.floorMod(divisor: Int): Int = ((this % divisor) + divisor) % divisor

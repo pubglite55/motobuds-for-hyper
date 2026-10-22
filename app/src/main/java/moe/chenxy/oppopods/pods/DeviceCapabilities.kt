@@ -8,7 +8,7 @@ private val ADAPTIVE_SUPPORTED_DEVICES = arrayOf(
     "Moto Buds",
 )
 
-// Moto Buds+ (XT2441-1 / "flute") is the only variant with spatial audio + head tracking;
+// Moto Buds+ (XT2441-1 / "flute") is the only Moto variant with spatial audio + head tracking;
 // standard Moto Buds and Moto Buds Bass do not expose it. Name matching cannot rely on
 // "Moto Buds+" because it normalizes to the same token as "Moto Buds", so the codename and
 // model id are used and users can still force the capability from the module settings.
@@ -31,29 +31,51 @@ data class DeviceCapabilities(
     val ancImplementation: AncImplementation,
 )
 
+/**
+ * Resolves device capabilities.
+ *
+ * When the model id from opcode 0x0000 is known, the feature table in [DeviceModelRegistry]
+ * drives the result; otherwise the advertised Bluetooth name is used as a fallback.
+ * Every capability can still be forced from the module settings.
+ */
 fun detectDeviceCapabilities(
     deviceName: String,
     adaptiveOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     spatialAudioOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     spatialSoundSwitchOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     ancImplementationOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
+    modelId: String? = null,
 ): DeviceCapabilities {
+    val model = DeviceModelRegistry.find(modelId = modelId, deviceName = deviceName)
+
+    val adaptiveAuto = model?.supports(DeviceModelRegistry.FEATURE_ADAPTIVE_HEARING)
+        ?: isAdaptiveSupportedByName(deviceName)
+    val spatialAudioAuto = model?.supports(DeviceModelRegistry.FEATURE_SPATIAL_AUDIO)
+        ?: isSpatialAudioSupportedByName(deviceName)
+    val spatialSoundSwitchAuto = if (model != null) {
+        model.supports(DeviceModelRegistry.FEATURE_SPATIAL_AUDIO)
+    } else {
+        isSpatialSoundSwitchSupportedByName(deviceName)
+    }
+    // Known models are not "legacy" ANC devices; only the name fallback can report legacy.
+    val legacyAncAuto = if (model != null) false else isLegacyAncDeviceByName(deviceName)
+
     return DeviceCapabilities(
         adaptiveSupported = resolveCapability(
             override = adaptiveOverride,
-            autoDetected = isAdaptiveSupportedByName(deviceName),
+            autoDetected = adaptiveAuto,
         ),
         spatialAudioSupported = resolveCapability(
             override = spatialAudioOverride,
-            autoDetected = isSpatialAudioSupportedByName(deviceName),
+            autoDetected = spatialAudioAuto,
         ),
         spatialSoundSwitchSupported = resolveCapability(
             override = spatialSoundSwitchOverride,
-            autoDetected = isSpatialSoundSwitchSupportedByName(deviceName),
+            autoDetected = spatialSoundSwitchAuto,
         ),
         ancImplementation = resolveAncImplementation(
             override = ancImplementationOverride,
-            autoDetected = isLegacyAncDeviceByName(deviceName)
+            autoDetected = legacyAncAuto,
         )
     )
 }

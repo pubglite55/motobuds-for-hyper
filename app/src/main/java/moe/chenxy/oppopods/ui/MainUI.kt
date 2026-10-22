@@ -52,9 +52,12 @@ import moe.chenxy.oppopods.pods.GameModeImplementation
 import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.WearState
 import moe.chenxy.oppopods.pods.WearStatus
+import moe.chenxy.oppopods.pods.DeviceModelRegistry
+import moe.chenxy.oppopods.pods.MotoBudsCustomEq
 import moe.chenxy.oppopods.pods.detectDeviceCapabilities
 import moe.chenxy.oppopods.ui.pages.AboutPage
 import moe.chenxy.oppopods.ui.pages.DeviceCapabilitiesPage
+import moe.chenxy.oppopods.ui.pages.PodToolsPage
 import moe.chenxy.oppopods.ui.pages.RfcommDebugPage
 import moe.chenxy.oppopods.ui.pages.ThemeSettingsPage
 import moe.chenxy.oppopods.utils.RootManager
@@ -83,6 +86,7 @@ sealed interface Screen : NavKey {
     data object About : Screen
     data object Theme : Screen
     data object DeviceCapabilities : Screen
+    data object PodTools : Screen
     data object RfcommDebug : Screen
 }
 
@@ -118,6 +122,14 @@ fun MainUI(
     val dualDeviceConnection = remember { mutableStateOf(false) }
     val volumeBoost = remember { mutableStateOf(false) }
     val hiResMode = remember { mutableStateOf(false) }
+    var customEqBands by remember { mutableStateOf(FloatArray(MotoBudsCustomEq.BAND_COUNT)) }
+    var fitLeft by remember { mutableStateOf<Int?>(null) }
+    var fitRight by remember { mutableStateOf<Int?>(null) }
+    var fmdLeft by remember { mutableStateOf(false) }
+    var fmdRight by remember { mutableStateOf(false) }
+    var podModelId by remember { mutableStateOf<String?>(null) }
+    var podModelName by remember { mutableStateOf<String?>(null) }
+    var podFeatures by remember { mutableStateOf<List<String>>(emptyList()) }
     val tabs = remember { MainTab.entries.toList() }
     var selectedTab by remember { mutableStateOf(MainTab.Module) }
     var hasAppliedDefaultTab by remember { mutableStateOf(false) }
@@ -188,6 +200,7 @@ fun MainUI(
         spatialAudioOverride = spatialAudioCapabilityOverride.value,
         spatialSoundSwitchOverride = spatialSoundSwitchCapabilityOverride.value,
         ancImplementationOverride = ancImplementationCapabilityOverride.value,
+        modelId = podModelId,
     )
 
     LaunchedEffect(displayTitle, displayCapabilities) {
@@ -292,6 +305,28 @@ fun MainUI(
                         dualDeviceConnection.value = p1.getBooleanExtra("enabled", false)
                     }
 
+                    OppoPodsAction.ACTION_PODS_CUSTOM_EQ_CHANGED -> {
+                        p1.getFloatArrayExtra("bands")?.let { customEqBands = it }
+                    }
+
+                    OppoPodsAction.ACTION_PODS_FIT_TEST_RESULT -> {
+                        fitLeft = p1.getIntExtra("left", -1).takeIf { it >= 0 }
+                        fitRight = p1.getIntExtra("right", -1).takeIf { it >= 0 }
+                    }
+
+                    OppoPodsAction.ACTION_PODS_FMD_CHANGED -> {
+                        fmdLeft = p1.getBooleanExtra("left", false)
+                        fmdRight = p1.getBooleanExtra("right", false)
+                    }
+
+                    OppoPodsAction.ACTION_PODS_DEVICE_INFO_CHANGED -> {
+                        podModelId = p1.getStringExtra("model_id")
+                        podModelName = p1.getStringExtra("model_name")
+                        podFeatures = p1.getIntArrayExtra("features")
+                            ?.map { DeviceModelRegistry.featureName(it) }
+                            ?: emptyList()
+                    }
+
                     OppoPodsAction.ACTION_PODS_CONNECTED -> {
                         val deviceName = p1.getStringExtra("device_name")
                         val shouldOpenEarphones = connectingDeviceAddress != null || !hasAppliedDefaultTab
@@ -370,6 +405,10 @@ fun MainUI(
             addAction(OppoPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_EQ_PRESET_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_CUSTOM_EQ_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_FIT_TEST_RESULT)
+            addAction(OppoPodsAction.ACTION_PODS_FMD_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_DEVICE_INFO_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DISCONNECTED)
@@ -777,6 +816,7 @@ fun MainUI(
                 spatialAudioCapabilityOverride = spatialAudioCapabilityOverride,
                 spatialSoundSwitchCapabilityOverride = spatialSoundSwitchCapabilityOverride,
                 onOpenDeviceCapabilities = { backStack.add(Screen.DeviceCapabilities) },
+                onOpenPodTools = { backStack.add(Screen.PodTools) },
                 onOpenRfcommDebug = { backStack.add(Screen.RfcommDebug) },
                 fakeDeviceId = fakeDeviceId,
                 onFakeDeviceIdChange = {
@@ -959,6 +999,75 @@ fun MainUI(
                 }
             }
         }
+        entry<Screen.PodTools> {
+            val toolsScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = stringResource(R.string.pod_tools_title),
+                        largeTitle = stringResource(R.string.pod_tools_title),
+                        scrollBehavior = toolsScrollBehavior,
+                        navigationIcon = {
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                        .padding(padding),
+                ) {
+                    PodToolsPage(
+                        modifier = Modifier
+                            .overScrollVertical()
+                            .nestedScroll(toolsScrollBehavior.nestedScrollConnection),
+                        contentPadding = PaddingValues(bottom = pageBottomContentPadding),
+                        eqBands = customEqBands,
+                        onApplyEq = { bands ->
+                            customEqBands = bands
+                            sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_CUSTOM_EQ_SET) {
+                                putExtra("bands", bands)
+                            }
+                        },
+                        onQueryEq = {
+                            sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_CUSTOM_EQ_QUERY)
+                        },
+                        fitLeft = fitLeft,
+                        fitRight = fitRight,
+                        onStartFitTest = {
+                            fitLeft = null
+                            fitRight = null
+                            sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_FIT_TEST_SET) {
+                                putExtra("start", true)
+                            }
+                        },
+                        onStopFitTest = {
+                            sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_FIT_TEST_SET) {
+                                putExtra("start", false)
+                            }
+                        },
+                        fmdLeft = fmdLeft,
+                        fmdRight = fmdRight,
+                        onFmdChange = { left, right ->
+                            fmdLeft = left
+                            fmdRight = right
+                            sendBluetoothModuleBroadcast(context, OppoPodsAction.ACTION_FMD_SET) {
+                                putExtra("left", left)
+                                putExtra("right", right)
+                            }
+                        },
+                        modelName = podModelName,
+                        modelId = podModelId,
+                        featureNames = podFeatures,
+                    )
+                }
+            }
+        }
         entry<Screen.RfcommDebug> {
             val rfcommScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
             var clearRfcommLogsRequest by remember { mutableIntStateOf(0) }
@@ -1037,11 +1146,12 @@ private fun wearStateFromExtra(value: Int): WearState? {
     return WearState.fromValue(value)
 }
 
-private fun sendBluetoothModuleBroadcast(context: Context, action: String) {
+private fun sendBluetoothModuleBroadcast(context: Context, action: String, fill: Intent.() -> Unit = {}) {
     listOf("com.android.bluetooth", "com.xiaomi.bluetooth").forEach { packageName ->
         Intent(action).apply {
             setPackage(packageName)
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            fill()
             context.sendBroadcast(this)
         }
     }
