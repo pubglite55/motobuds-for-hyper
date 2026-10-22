@@ -73,6 +73,8 @@ class HookEntry : XposedModule() {
             "com.xiaomi.bluetooth" -> {
                 loadHook(MiBluetoothToastHook, classLoader, packageName)
                 loadHook(BluetoothUpstreamHeadsetHook(), classLoader, packageName)
+                // HyperOS 4 / A17 hides the wireless_headset icon from this process.
+                loadHook(XiaomiBluetoothHeadsetIconGuard, classLoader, packageName)
             }
         }
     }
