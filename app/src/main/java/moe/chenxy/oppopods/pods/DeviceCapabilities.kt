@@ -8,8 +8,13 @@ private val ADAPTIVE_SUPPORTED_DEVICES = arrayOf(
     "Moto Buds",
 )
 
+// Moto Buds+ (XT2441-1 / "flute") is the only variant with spatial audio + head tracking;
+// standard Moto Buds and Moto Buds Bass do not expose it. Name matching cannot rely on
+// "Moto Buds+" because it normalizes to the same token as "Moto Buds", so the codename and
+// model id are used and users can still force the capability from the module settings.
 private val SPATIAL_AUDIO_SUPPORTED_DEVICES = arrayOf(
-    "OPPO Enco X3",
+    "flute",
+    "XT2441",
 )
 
 private val SPATIAL_SOUND_SWITCH_SUPPORTED_DEVICES = arrayOf(

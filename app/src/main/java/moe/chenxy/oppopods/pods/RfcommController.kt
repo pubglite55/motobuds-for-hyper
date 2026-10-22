@@ -927,7 +927,9 @@ object RfcommController {
             // Game mode (notification 0x312)
             Cmd.GAME_MODE_STATE_CHANGED -> {
                 if (payload != null && payload.isNotEmpty()) {
-                    val enabled = payload[0].toInt() == 0x01
+                    // Moto buds notify game mode with 0x19 / 0x1A, query responses use 0x01 / 0x00.
+                    val raw = payload[0].toInt() and 0xFF
+                    val enabled = raw == 0x01 || raw == 0x19
                     Log.d(TAG, "Game mode received: $enabled")
                     currentGameMode = enabled
                     changeUIGameModeStatus(enabled)
@@ -936,7 +938,8 @@ object RfcommController {
             // Game mode query response (0x30E)
             Cmd.GET_GAME_MODE -> {
                 if (payload != null && payload.isNotEmpty()) {
-                    val enabled = payload[0].toInt() == 0x01
+                    val raw = payload[0].toInt() and 0xFF
+                    val enabled = raw == 0x01 || raw == 0x19
                     Log.d(TAG, "Game mode query response: $enabled")
                     currentGameMode = enabled
                     changeUIGameModeStatus(enabled)
@@ -945,7 +948,9 @@ object RfcommController {
             // Volume boost notification (0x315) or query response (0x313)
             Cmd.VOLUME_BOOST_STATE_CHANGED, Cmd.GET_VOLUME_BOOST_STATE -> {
                 if (payload != null && payload.isNotEmpty()) {
-                    val enabled = payload[0].toInt() == 0x01
+                    // Notifications use 0x1D / 0x1E, query responses use 0x01 / 0x00.
+                    val raw = payload[0].toInt() and 0xFF
+                    val enabled = raw == 0x01 || raw == 0x1D
                     Log.d(TAG, "Volume boost received: $enabled")
                     currentVolumeBoost = enabled
                     changeUIVolumeBoostStatus(enabled)
@@ -954,7 +959,9 @@ object RfcommController {
             // Hi-res mode notification (0x311) or query response (0x30D)
             Cmd.HI_RES_MODE_STATE_CHANGED, Cmd.GET_HI_RES_MODE -> {
                 if (payload != null && payload.isNotEmpty()) {
-                    val enabled = payload[0].toInt() == 0x01
+                    // Read response 0x30C is [support, state]; notifications 0x311 are one byte.
+                    val raw = if (payload.size >= 2) payload[1].toInt() and 0xFF else payload[0].toInt() and 0xFF
+                    val enabled = raw == 0x01
                     Log.d(TAG, "Hi-res mode received: $enabled")
                     changeUIHiResModeStatus(enabled)
                 }
@@ -1005,8 +1012,11 @@ object RfcommController {
             // In-case status notification (0x40C)
             Cmd.IN_CASE_STATUS_INDICATION -> {
                 if (payload != null && payload.isNotEmpty()) {
-                    currentInCase = payload[0].toInt() != 0
-                    Log.d(TAG, "In-case status: $currentInCase")
+                    // Reference protocol: 0x040C payload is [left_in_case, right_in_case].
+                    val left = payload.getOrNull(0)?.toInt()?.and(0xFF) ?: 0
+                    val right = payload.getOrNull(1)?.toInt()?.and(0xFF) ?: left
+                    currentInCase = left != 0 || right != 0
+                    Log.d(TAG, "In-case status: left=$left right=$right")
                 }
             }
             // Toggle configs response (0x100)

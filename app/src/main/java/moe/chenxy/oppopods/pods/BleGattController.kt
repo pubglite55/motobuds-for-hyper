@@ -33,12 +33,21 @@ import moe.chenxy.oppopods.hook.Log
 object BleGattController {
     private const val TAG = "MotoBuds-BleGatt"
 
-    // MotoBuds BLE GATT UUIDs
-    private val SERVICE_UUID = java.util.UUID.fromString("fc9d9fe0-4899-11ee-be56-0242ac120002")
-    private val WRITE_UUID = java.util.UUID.fromString("fc9d9ff0-4899-11ee-be56-0242ac120002")
-    private val NOTIFY_UUID = java.util.UUID.fromString("fc9d9ff1-4899-11ee-be56-0242ac120002")
-    private val READ_UUID = java.util.UUID.fromString("fc9d9ff2-4899-11ee-be56-0242ac120002")
-    private val CONFIG_UUID = java.util.UUID.fromString("fc9d9ff3-4899-11ee-be56-0242ac120002")
+    // Known Moto Buds BLE GATT layouts. The reverse-engineered protocol reference documents
+    // fc9d0002 (write) / fc9d0003 (notify); the fc9d9ff0..ff3 set comes from the OppoPods
+    // lineage and is kept as a fallback. Discovery below accepts either layout.
+    private val SERVICE_UUIDS = listOf(
+        "fc9d9fe0-4899-11ee-be56-0242ac120002",
+        "fc9d0001-4899-11ee-be56-0242ac120002",
+    ).map(java.util.UUID::fromString)
+    private val WRITE_UUIDS = listOf(
+        "fc9d0002-4899-11ee-be56-0242ac120002",
+        "fc9d9ff0-4899-11ee-be56-0242ac120002",
+    ).map(java.util.UUID::fromString)
+    private val NOTIFY_UUIDS = listOf(
+        "fc9d0003-4899-11ee-be56-0242ac120002",
+        "fc9d9ff1-4899-11ee-be56-0242ac120002",
+    ).map(java.util.UUID::fromString)
     private val CCCD_UUID = java.util.UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -127,7 +136,7 @@ object BleGattController {
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?) {
             characteristic?.let {
-                if (it.uuid == NOTIFY_UUID) {
+                if (notifyCharacteristic == null || it.uuid == notifyCharacteristic?.uuid) {
                     val data = it.value
                     Log.d(TAG, "Received data: ${data.joinToString(" ") { "%02X".format(it) }}")
                     callback?.onDataReceived(data)
@@ -153,29 +162,59 @@ object BleGattController {
     }
 
     private fun setupCharacteristics(gatt: BluetoothGatt?) {
-        gatt?.let { bluetoothGatt = it }
-
-        val service = gatt?.getService(SERVICE_UUID)
-        if (service == null) {
-            Log.e(TAG, "MotoBuds service not found")
-            callback?.onError("Service not found")
+        if (gatt == null) {
+            callback?.onError("GATT unavailable")
             return
         }
+        bluetoothGatt = gatt
 
-        writeCharacteristic = service.getCharacteristic(WRITE_UUID)
-        notifyCharacteristic = service.getCharacteristic(NOTIFY_UUID)
+        var write: BluetoothGattCharacteristic? = null
+        var notify: BluetoothGattCharacteristic? = null
 
-        if (writeCharacteristic == null || notifyCharacteristic == null) {
+        // Preferred UUID pairs first: documented Moto Buds layout, then the legacy set.
+        serviceLoop@ for (serviceUuid in SERVICE_UUIDS) {
+            val service = gatt.getService(serviceUuid) ?: continue@serviceLoop
+            if (write == null) write = WRITE_UUIDS.firstNotNullOfOrNull { service.getCharacteristic(it) }
+            if (notify == null) notify = NOTIFY_UUIDS.firstNotNullOfOrNull { service.getCharacteristic(it) }
+        }
+
+        // Fallback: any fc9d characteristic exposing write / notify properties.
+        if (write == null || notify == null) {
+            characteristicLoop@ for (service in gatt.services.orEmpty()) {
+                for (characteristic in service.characteristics.orEmpty()) {
+                    val uuid = characteristic.uuid.toString()
+                    if (!uuid.startsWith("fc9d")) continue@characteristicLoop
+                    val properties = characteristic.properties
+                    val writable = properties and (
+                        BluetoothGattCharacteristic.PROPERTY_WRITE or
+                            BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE
+                        ) != 0
+                    val notifiable = properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
+                    if (write == null && writable && (uuid.endsWith("0002") || uuid.endsWith("ff0"))) {
+                        write = characteristic
+                    } else if (notify == null && notifiable && (uuid.endsWith("0003") || uuid.endsWith("ff1"))) {
+                        notify = characteristic
+                    }
+                }
+            }
+        }
+
+        if (write == null || notify == null) {
             Log.e(TAG, "Required characteristics not found")
             callback?.onError("Characteristics not found")
             return
         }
 
+        writeCharacteristic = write
+        notifyCharacteristic = notify
+        Log.d(TAG, "Using write=" + write.uuid + " notify=" + notify.uuid)
+
         // Enable notifications
-        gatt?.setCharacteristicNotification(notifyCharacteristic, true)
-        val descriptor = notifyCharacteristic?.getDescriptor(CCCD_UUID)
-        descriptor?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-        gatt?.writeDescriptor(descriptor)
+        gatt.setCharacteristicNotification(notify, true)
+        notify.getDescriptor(CCCD_UUID)?.let { descriptor ->
+            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            gatt.writeDescriptor(descriptor)
+        }
 
         isConnected = true
         Log.d(TAG, "BLE GATT ready")

@@ -79,51 +79,62 @@ object BleGattTransport {
             return
         }
 
-        // BLE GATT has MTU limit (typically 512 bytes)
-        // Split large packets if needed
+        // BLE notifications carry the compact frame (no HEAD/length/CRC/TAIL).
+        val bleFrame = MotoBudsPackets.toBleFrame(data)
+
+        // BLE GATT has MTU limit (typically 512 bytes); fragment if needed.
         val mtu = 512
-        if (data.size <= mtu) {
-            BleGattController.sendPacket(data)
+        if (bleFrame.size <= mtu) {
+            BleGattController.sendPacket(bleFrame)
         } else {
-            // Fragment large packets
             var offset = 0
-            while (offset < data.size) {
-                val end = minOf(offset + mtu, data.size)
-                val fragment = data.copyOfRange(offset, end)
-                BleGattController.sendPacket(fragment)
+            while (offset < bleFrame.size) {
+                val end = minOf(offset + mtu, bleFrame.size)
+                BleGattController.sendPacket(bleFrame.copyOfRange(offset, end))
                 offset = end
-                if (offset < data.size) {
-                    Thread.sleep(50) // Small delay between fragments
+                if (offset < bleFrame.size) {
+                    Thread.sleep(50)
                 }
             }
         }
     }
 
     private fun processIncomingData(data: ByteArray) {
-        // Assemble packets from BLE GATT notifications
-        // BLE GATT may split packets into multiple notifications
+        // BLE GATT may split a frame across several notifications. Two layouts are accepted:
+        //  - full SPP frame starting with "HEAD" (some ROMs forward the raw SPP bytes)
+        //  - compact GATT frame: 8-byte core header + payload (documented Moto Buds BLE layout)
         packetAssembler.write(data)
-
         val assembled = packetAssembler.toByteArray()
 
-        // Check for complete packet (starts with HEAD, ends with TAIL)
-        if (assembled.size >= 14) {
-            // Check for HEAD marker
-            if (assembled[0] == 0x48.toByte() && assembled[1] == 0x45.toByte()) {
-                // Extract total length from bytes 4-5
-                val totalLen = (assembled[4].toInt() and 0xFF) or ((assembled[5].toInt() and 0xFF) shl 8)
-                val expectedSize = 4 + 2 + totalLen + 4 + 4 // HEAD + len + PDU + CRC + TAIL
+        var consumed = 0
+        while (consumed < assembled.size) {
+            val available = assembled.size - consumed
+            if (available < 8) break
 
-                if (assembled.size >= expectedSize) {
-                    // Complete packet received
-                    val packet = assembled.copyOfRange(0, expectedSize)
-                    packetAssembler.reset()
-                    dataCallback?.invoke(packet)
-                }
+            val isFullFrame = assembled[consumed] == 0x48.toByte() && assembled[consumed + 1] == 0x45.toByte()
+            if (isFullFrame) {
+                if (available < 6) break
+                val totalLen = (assembled[consumed + 4].toInt() and 0xFF) or
+                    ((assembled[consumed + 5].toInt() and 0xFF) shl 8)
+                if (totalLen < 8) break
+                val expectedSize = 6 + totalLen + 8 // HEAD + len + PDU + CRC + TAIL
+                if (available < expectedSize) break
+                dataCallback?.invoke(assembled.copyOfRange(consumed, consumed + expectedSize))
+                consumed += expectedSize
             } else {
-                // Invalid data, reset
-                packetAssembler.reset()
+                val payloadLen = (assembled[consumed + 4].toInt() and 0xFF) or
+                    ((assembled[consumed + 5].toInt() and 0xFF) shl 8)
+                val expectedSize = 8 + payloadLen
+                if (available < expectedSize) break
+                val core = assembled.copyOfRange(consumed, consumed + expectedSize)
+                MotoBudsPackets.fromBleFrame(core)?.let { dataCallback?.invoke(it) }
+                consumed += expectedSize
             }
+        }
+
+        packetAssembler.reset()
+        if (consumed < assembled.size) {
+            packetAssembler.write(assembled, consumed, assembled.size - consumed)
         }
     }
 
