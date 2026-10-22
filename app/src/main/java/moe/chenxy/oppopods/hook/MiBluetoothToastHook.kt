@@ -37,10 +37,8 @@ object MiBluetoothToastHook : HookContext() {
     private var notificationReceiverContext: Context? = null
     private var notificationReceiverRegistered = false
 
-    private companion object {
-        const val NOTIFICATION_CLASS = "com.android.bluetooth.ble.app.MiuiBluetoothNotification"
-        const val TAG_TOAST = "MotoBuds-Notification"
-    }
+    private const val NOTIFICATION_CLASS = "com.android.bluetooth.ble.app.MiuiBluetoothNotification"
+    private const val TAG_TOAST = "MotoBuds-Notification"
 
     override fun onHook() {
 
