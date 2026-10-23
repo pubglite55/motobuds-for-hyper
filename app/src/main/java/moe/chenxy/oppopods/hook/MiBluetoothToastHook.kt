@@ -42,6 +42,12 @@ object MiBluetoothToastHook : HookContext() {
 
     override fun onHook() {
 
+        // 焦点通知总开关：关闭后不再创建/刷新通知
+        if (!ConfigManager.focusNotification()) {
+            Log.d("MotoBuds", "focus notification disabled, skip MiBluetoothToastHook")
+            return
+        }
+
         fun deleteIntent(context: Context, bluetoothDevice: BluetoothDevice): PendingIntent? {
             val intent = Intent("com.android.bluetooth.headset.notification.cancle")
             intent.putExtra("android.bluetooth.device.extra.DEVICE", bluetoothDevice)
@@ -266,6 +272,11 @@ object MiBluetoothToastHook : HookContext() {
                             } else if (p1?.action == "xiuxiu.action.motobuds.updatepodsnotification") {
                                 val batteryParams = p1.getParcelableExtra<BatteryParams>("batteryParams", BatteryParams::class.java) ?: return
                                 val device = p1.getParcelableExtra("device", BluetoothDevice::class.java)
+                                // 焦点通知开关：关闭时撤掉已显示的通知
+                                if (!ConfigManager.focusNotification()) {
+                                    device?.let { cancelNotification(it, context) }
+                                    return
+                                }
                                 createPodsNotification(device, context, batteryParams)
                             } else if (p1?.action == "xiuxiu.action.motobuds.cancelpodsnotification") {
                                 val device = p1.getParcelableExtra("device", BluetoothDevice::class.java) as BluetoothDevice

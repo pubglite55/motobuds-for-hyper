@@ -33,6 +33,8 @@ fun SettingsPage(
     logLevel: MutableState<Int> = mutableStateOf(ConfigManager.LOG_LEVEL_BASIC),
     onLogLevelChange: (Int) -> Unit = {},
     islandMode: MutableState<Int> = mutableStateOf(ConfigManager.ISLAND_MODE_OFFICIAL),
+    focusNotification: MutableState<Boolean> = mutableStateOf(true),
+    onFocusNotificationChange: (Boolean) -> Unit = {},
     onIslandModeChange: (Int) -> Unit = {},
     islandShowTimings: MutableState<Set<Int>> = mutableStateOf(emptySet()),
     onIslandShowTimingsChange: (Set<Int>) -> Unit = {},
@@ -52,6 +54,7 @@ fun SettingsPage(
     onOpenDeviceCapabilities: () -> Unit = {},
     fakeDeviceId: MutableState<String> = mutableStateOf(ConfigManager.DEFAULT_FAKE_DEVICE_ID),
     onFakeDeviceIdChange: (String) -> Unit = {},
+    onOpenLeAudio: () -> Unit = {},
     onOpenTheme: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     lowBatteryReminder: MutableState<Boolean> = mutableStateOf(true),
@@ -182,6 +185,16 @@ fun SettingsPage(
         item {
             Card(modifier = Modifier.padding(top = 12.dp)) {
                 BasicComponent(
+                    title = stringResource(R.string.le_audio_title),
+                    summary = stringResource(R.string.le_audio_summary),
+                    onClick = onOpenLeAudio,
+                )
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.padding(top = 12.dp)) {
+                BasicComponent(
                     title = stringResource(R.string.device_capabilities),
                     summary = deviceCapabilitySummary,
                     onClick = onOpenDeviceCapabilities,
@@ -192,6 +205,12 @@ fun SettingsPage(
                     items = islandModeOptions,
                     selectedIndex = islandModeValues.indexOf(islandMode.value).coerceAtLeast(0),
                     onSelectedIndexChange = { onIslandModeChange(islandModeValues[it]) }
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.focus_notification),
+                    summary = stringResource(R.string.focus_notification_summary),
+                    checked = focusNotification.value,
+                    onCheckedChange = { onFocusNotificationChange(it) }
                 )
                 if (islandMode.value == ConfigManager.ISLAND_MODE_MODULE) {
                     OverlayDropdownPreference(

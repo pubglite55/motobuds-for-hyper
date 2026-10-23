@@ -28,6 +28,8 @@ data class AppConfig(
     val spatialAudioCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     val spatialSoundSwitchCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     val ancImplementationCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
+    val leAudio: LeAudioConfig = LeAudioConfig(),
+    val focusNotification: Boolean = true,
 )
 
 /**
@@ -57,6 +59,7 @@ object ConfigManager {
     const val PREF_KEY_SPATIAL_AUDIO_CAPABILITY_OVERRIDE = "spatial_audio_capability_override"
     const val PREF_KEY_SPATIAL_SOUND_SWITCH_CAPABILITY_OVERRIDE = "spatial_sound_switch_capability_override"
     const val PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE = "anc_implementation_capability_override"
+    const val PREF_KEY_FOCUS_NOTIFICATION = "focus_notification"
     const val PREF_KEY_LAST_ANC_MODE = "last_anc_mode"
     const val PREF_KEY_LAST_GAME_MODE = "last_game_mode"
     const val PREF_KEY_LAST_VOLUME_BOOST = "last_volume_boost"
@@ -188,6 +191,16 @@ object ConfigManager {
         save(prefs, service, config)
     }
 
+    fun updateLeAudio(prefs: SharedPreferences, service: XposedService?, leAudio: LeAudioConfig) {
+        save(prefs, service, current().copy(leAudio = leAudio.normalized()))
+    }
+
+    fun updateFocusNotification(prefs: SharedPreferences, service: XposedService?, enabled: Boolean) {
+        save(prefs, service, current().copy(focusNotification = enabled))
+    }
+
+    fun focusNotification(): Boolean = current().focusNotification
+
     fun saveLastState(prefs: SharedPreferences, ancMode: Int, gameMode: Boolean, volumeBoost: Boolean, hiResMode: Boolean) {
         prefs.edit()
             .putInt(PREF_KEY_LAST_ANC_MODE, ancMode)
@@ -236,6 +249,7 @@ object ConfigManager {
             .putInt(PREF_KEY_SPATIAL_AUDIO_CAPABILITY_OVERRIDE, config.spatialAudioCapabilityOverride)
             .putInt(PREF_KEY_SPATIAL_SOUND_SWITCH_CAPABILITY_OVERRIDE, config.spatialSoundSwitchCapabilityOverride)
             .putInt(PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE, config.ancImplementationCapabilityOverride)
+            .putBoolean(PREF_KEY_FOCUS_NOTIFICATION, config.focusNotification)
             .commit()
     }
 
@@ -250,6 +264,8 @@ object ConfigManager {
         val directSpatialAudioCapabilityOverride = prefs.getInt(PREF_KEY_SPATIAL_AUDIO_CAPABILITY_OVERRIDE, Int.MIN_VALUE)
         val directSpatialSoundSwitchCapabilityOverride = prefs.getInt(PREF_KEY_SPATIAL_SOUND_SWITCH_CAPABILITY_OVERRIDE, Int.MIN_VALUE)
         val directAncImplementationCapabilityOverride = prefs.getInt(PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE, Int.MIN_VALUE)
+        val directFocusNotification = prefs.takeIf { it.contains(PREF_KEY_FOCUS_NOTIFICATION) }
+            ?.getBoolean(PREF_KEY_FOCUS_NOTIFICATION, true)
         val raw = prefs.getString(PREF_KEY_CONFIG_JSON, null)
         logPrefsSnapshot(source, prefs, directFakeDeviceId, raw)
         val config = raw?.let {
@@ -268,6 +284,7 @@ object ConfigManager {
                 spatialAudioCapabilityOverride = directSpatialAudioCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.spatialAudioCapabilityOverride,
                 spatialSoundSwitchCapabilityOverride = directSpatialSoundSwitchCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.spatialSoundSwitchCapabilityOverride,
                 ancImplementationCapabilityOverride = directAncImplementationCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.ancImplementationCapabilityOverride,
+                focusNotification = directFocusNotification ?: config.focusNotification,
             ).normalized()
         }
         return config.copy(
@@ -295,6 +312,7 @@ object ConfigManager {
         spatialAudioCapabilityOverride = spatialAudioCapabilityOverride.normalizedCapabilityOverride(),
         spatialSoundSwitchCapabilityOverride = spatialSoundSwitchCapabilityOverride.normalizedCapabilityOverride(),
         ancImplementationCapabilityOverride = ancImplementationCapabilityOverride.normalizedCapabilityOverride(),
+        leAudio = leAudio.normalized(),
     )
 
     private fun String.normalizedFakeDeviceId(): String = trim().takeIf { it.isNotEmpty() } ?: DEFAULT_FAKE_DEVICE_ID
@@ -325,6 +343,9 @@ object ConfigManager {
 
     private fun changedFields(oldConfig: AppConfig, newConfig: AppConfig): List<String> {
         return buildList {
+            if (oldConfig.leAudio != newConfig.leAudio) {
+                add("leAudio=" + oldConfig.leAudio + "->" + newConfig.leAudio)
+            }
             if (oldConfig.fakeDeviceId != newConfig.fakeDeviceId) {
                 add("fakeDeviceId=${oldConfig.fakeDeviceId}->${newConfig.fakeDeviceId}")
             }

@@ -144,4 +144,6 @@
     <string name="pod_tools_device_info">デバイス情報</string>
     <string name="pod_tools_unknown_model">未検出</string>
     <string name="pod_tools_features">対応機能</string>
+    <string name="focus_notification">フォーカス通知</string>
+    <string name="focus_notification_summary">通知シェードにイヤホン操作カードを表示します</string>
 </resources>
