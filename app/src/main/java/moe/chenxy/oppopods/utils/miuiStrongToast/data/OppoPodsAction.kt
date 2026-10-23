@@ -42,13 +42,6 @@ object OppoPodsAction {
     const val ACTION_ADAPTIVE_MODE_CHANGED = "xiuxiu.action.motobuds.adaptive_mode_changed"
     const val ACTION_CONFIG_CHANGED = "xiuxiu.action.motobuds.config_changed"
 
-    // Pod tools: custom EQ, fit test, find-my-device, device info
-    const val ACTION_CUSTOM_EQ_SET = "xiuxiu.action.motobuds.custom_eq_set"
-    const val ACTION_CUSTOM_EQ_QUERY = "xiuxiu.action.motobuds.custom_eq_query"
-    const val ACTION_PODS_CUSTOM_EQ_CHANGED = "xiuxiu.action.motobuds.pods_custom_eq_changed"
-    const val ACTION_FIT_TEST_SET = "xiuxiu.action.motobuds.fit_test_set"
-    const val ACTION_PODS_FIT_TEST_RESULT = "xiuxiu.action.motobuds.pods_fit_test_result"
-    const val ACTION_FMD_SET = "xiuxiu.action.motobuds.fmd_set"
-    const val ACTION_PODS_FMD_CHANGED = "xiuxiu.action.motobuds.pods_fmd_changed"
+    // Detected device model / feature list (opcode 0x0000 + DeviceModelRegistry)
     const val ACTION_PODS_DEVICE_INFO_CHANGED = "xiuxiu.action.motobuds.pods_device_info_changed"
 }

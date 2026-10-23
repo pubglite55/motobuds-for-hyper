@@ -142,22 +142,7 @@
     <string name="blur_bottom_bar_summary">为底部导航栏添加模糊效果</string>
     <string name="liquid_glass">液态玻璃</string>
     <string name="liquid_glass_summary">为底栏启用液态玻璃效果</string>
-    <string name="pod_tools_title">耳机工具箱</string>
     <string name="pod_tools_device_info">设备信息</string>
     <string name="pod_tools_unknown_model">尚未识别</string>
     <string name="pod_tools_features">支持功能</string>
-    <string name="pod_tools_eq">自定义均衡器</string>
-    <string name="pod_tools_eq_apply">应用</string>
-    <string name="pod_tools_eq_query">从耳机读取</string>
-    <string name="pod_tools_eq_reset">重置</string>
-    <string name="pod_tools_fit_test">贴合测试</string>
-    <string name="pod_tools_fit_start">开始</string>
-    <string name="pod_tools_fit_stop">停止</string>
-    <string name="pod_tools_fit_left">左耳</string>
-    <string name="pod_tools_fit_right">右耳</string>
-    <string name="pod_tools_fit_good">贴合良好</string>
-    <string name="pod_tools_fit_adjust">建议调整</string>
-    <string name="pod_tools_find_my_device">查找耳机</string>
-    <string name="pod_tools_fmd_left">左耳响铃</string>
-    <string name="pod_tools_fmd_right">右耳响铃</string>
 </resources>

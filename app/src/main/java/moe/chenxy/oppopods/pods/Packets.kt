@@ -185,57 +185,6 @@ object SpatialAudioMode {
     const val HEAD_TRACKING = 0x02
 }
 
-/**
- * 10-band custom EQ (opcodes 0x0305 / 0x0306).
- *
- * Payload layout (173 bytes, little-endian), reverse engineered from the Motorola app:
- *  - byte 0: 0x3F magic
- *  - float32 pre-amp gain
- *  - float32 post-amp gain
- *  - int32 band count (10)
- *  - 10 x { int32 filter type (0), float32 gain (-3..3 dB), float32 frequency, float32 Q }
- */
-object MotoBudsCustomEq {
-    val FREQUENCIES = floatArrayOf(32f, 64f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f)
-    const val BAND_COUNT = 10
-    const val PAYLOAD_SIZE = 173
-    private const val MAGIC = 0x3F
-
-    fun buildPayload(bands: FloatArray, preampDb: Float = 0f, postampDb: Float = 0f): ByteArray {
-        val buffer = java.nio.ByteBuffer.allocate(PAYLOAD_SIZE).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-        buffer.put(MAGIC.toByte())
-        buffer.putFloat(preampDb)
-        buffer.putFloat(postampDb)
-        buffer.putInt(BAND_COUNT)
-        for (index in 0 until BAND_COUNT) {
-            val gain = (bands.getOrElse(index) { 0f }).coerceIn(-3f, 3f)
-            buffer.putInt(0)          // filter type: peaking
-            buffer.putFloat(gain)
-            buffer.putFloat(FREQUENCIES[index])
-            buffer.putFloat(0.75f)    // Q factor
-        }
-        return buffer.array()
-    }
-
-    fun parsePayload(payload: ByteArray): FloatArray? {
-        if (payload.size < PAYLOAD_SIZE) return null
-        if ((payload[0].toInt() and 0xFF) != MAGIC) return null
-        return runCatching {
-            val buffer = java.nio.ByteBuffer.wrap(payload).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            buffer.position(9) // magic + pre-amp + post-amp
-            if (buffer.int != BAND_COUNT) return null
-            val gains = FloatArray(BAND_COUNT)
-            for (index in 0 until BAND_COUNT) {
-                buffer.int            // filter type
-                gains[index] = buffer.float
-                buffer.float          // frequency
-                buffer.float          // Q factor
-            }
-            gains
-        }.getOrNull()
-    }
-}
-
 /** EQ preset IDs for MotoBuds. */
 object EqPreset {
     const val AUTHENTIC = 0
@@ -302,8 +251,6 @@ object Cmd {
     const val GET_AVAILABLE_EQ_SETS = 0x301
     const val GET_EQ_SET = 0x302
     const val SET_EQ_SET = 0x303
-    const val GET_CUSTOM_EQ = 0x305
-    const val SET_CUSTOM_EQ = 0x306
     const val EQ_STATE_CHANGED = 0x307
     const val EQ_SET_CHANGED = 0x308
     const val EQ_USER_BANDS_CHANGED = 0x309
@@ -790,37 +737,3 @@ enum class AncImplementation {
     COMPATIBLE
 }
 
-/**
- * Builders for Moto Buds commands that are not yet wired into the module UI.
- * Byte layouts follow the reverse-engineered protocol reference
- * (ThisWasAryan/MotoBudsDesktopUtility, GPL-3.0).
- */
-object MotoBudsCommands {
-    /** 0x0400: start (1) / stop (0) the fit test; result arrives on 0x0401 as [left, right]. */
-    fun fitTest(start: Boolean): ByteArray = MotoBudsPackets.buildPacket(
-        opcode = Cmd.SET_FIT_STATE,
-        payload = byteArrayOf(if (start) 0x01 else 0x00),
-    )
-
-    /** 0x0405: ring the left / right earbud. */
-    fun findMyDevice(left: Boolean, right: Boolean): ByteArray = MotoBudsPackets.buildPacket(
-        opcode = Cmd.FIND_MY_DEVICE,
-        payload = byteArrayOf(if (left) 0x01 else 0x00, if (right) 0x01 else 0x00),
-    )
-
-    /** 0x0102: [earbud (0 = left, 1 = right), gesture type, function id]. */
-    fun gesture(earbud: Int, gestureType: Int, function: Int): ByteArray = MotoBudsPackets.buildPacket(
-        opcode = Cmd.SET_TOGGLE_CONFIG,
-        payload = byteArrayOf(earbud.toByte(), gestureType.toByte(), function.toByte()),
-    )
-
-    /** 0x0305: read the custom EQ bands (173-byte payload in the response). */
-    fun queryCustomEq(): ByteArray = MotoBudsPackets.buildPacket(Cmd.GET_CUSTOM_EQ)
-
-    /** 0x0306: write the 10-band custom EQ. */
-    fun customEq(bands: FloatArray, preampDb: Float = 0f, postampDb: Float = 0f): ByteArray =
-        MotoBudsPackets.buildPacket(
-            opcode = Cmd.SET_CUSTOM_EQ,
-            payload = MotoBudsCustomEq.buildPayload(bands, preampDb, postampDb),
-        )
-}

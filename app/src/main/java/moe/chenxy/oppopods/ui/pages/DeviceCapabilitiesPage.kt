@@ -1,5 +1,6 @@
 package moe.chenxy.oppopods.ui.pages
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 
 @Composable
@@ -27,6 +29,9 @@ fun DeviceCapabilitiesPage(
     onSpatialSoundSwitchCapabilityOverrideChange: (Int) -> Unit = {},
     ancImplementationCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     onAncImplementationCapabilityOverrideChange: (Int) -> Unit = {},
+    modelName: String? = null,
+    modelId: String? = null,
+    featureNames: List<String> = emptyList(),
 ) {
     val overrideValues = listOf(
         ConfigManager.CAPABILITY_OVERRIDE_AUTO,
@@ -50,6 +55,27 @@ fun DeviceCapabilitiesPage(
     ) {
         item {
             Card {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = stringResource(R.string.pod_tools_device_info))
+                    Text(
+                        text = modelName ?: stringResource(R.string.pod_tools_unknown_model),
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    if (modelId != null) {
+                        Text(text = modelId, modifier = Modifier.padding(top = 2.dp))
+                    }
+                    if (featureNames.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.pod_tools_features) + ": " + featureNames.joinToString(", "),
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.padding(top = 12.dp)) {
                 OverlayDropdownPreference(
                     title = stringResource(R.string.adaptive_mode),
                     summary = stringResource(R.string.capability_override_summary),

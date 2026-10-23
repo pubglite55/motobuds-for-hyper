@@ -101,13 +101,8 @@ object RfcommController {
     @Volatile private var currentTransparencyVocalEnhancement: Boolean = false
     @Volatile private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
     @Volatile private var currentEqPreset: Int = -1
-    @Volatile private var currentCustomEq: FloatArray? = null
     @Volatile private var currentModelId: String? = null
     @Volatile private var currentHiResMode: Boolean = false
-    @Volatile private var currentFitLeft: Int? = null
-    @Volatile private var currentFitRight: Int? = null
-    @Volatile private var currentFmdLeft: Boolean = false
-    @Volatile private var currentFmdRight: Boolean = false
     @Volatile private var currentDualDeviceConnection: Boolean = false
     @Volatile private var currentInEarLeft: Boolean = false
     @Volatile private var currentInEarRight: Boolean = false
@@ -319,19 +314,6 @@ object RfcommController {
             OppoPodsAction.ACTION_DUAL_DEVICE_CONNECTION_SET -> {
                 val enabled = intent.getBooleanExtra("enabled", false)
                 setDualDeviceConnection(enabled)
-            }
-            OppoPodsAction.ACTION_CUSTOM_EQ_SET -> {
-                intent.getFloatArrayExtra("bands")?.let { setCustomEq(it) }
-            }
-            OppoPodsAction.ACTION_CUSTOM_EQ_QUERY -> queryCustomEq()
-            OppoPodsAction.ACTION_FIT_TEST_SET -> {
-                setFitTest(intent.getBooleanExtra("start", true))
-            }
-            OppoPodsAction.ACTION_FMD_SET -> {
-                setFindMyDevice(
-                    left = intent.getBooleanExtra("left", false),
-                    right = intent.getBooleanExtra("right", false),
-                )
             }
             OppoPodsAction.ACTION_CYCLE_ANC -> {
                 cycleAnc()
@@ -605,10 +587,6 @@ object RfcommController {
                 this.addAction(OppoPodsAction.ACTION_RFCOMM_LOG_DISCONNECT)
                 this.addAction(OppoPodsAction.ACTION_RFCOMM_LOG_CLEAR)
                 this.addAction(OppoPodsAction.ACTION_RFCOMM_DEBUG_SEND)
-                this.addAction(OppoPodsAction.ACTION_CUSTOM_EQ_SET)
-                this.addAction(OppoPodsAction.ACTION_CUSTOM_EQ_QUERY)
-                this.addAction(OppoPodsAction.ACTION_FIT_TEST_SET)
-                this.addAction(OppoPodsAction.ACTION_FMD_SET)
             }, Context.RECEIVER_EXPORTED)
             receiverRegistered = true
         }
@@ -1046,41 +1024,6 @@ object RfcommController {
             }
             // Profile version / firmware info: carries the model id used for feature gating
             Cmd.GET_PROFILE_VERSION -> parseProfileVersion(payload)
-            // Custom EQ (0x0305 read / 0x0306 write), 173-byte payload
-            Cmd.GET_CUSTOM_EQ, Cmd.SET_CUSTOM_EQ -> {
-                val bands = payload?.let { MotoBudsCustomEq.parsePayload(it) }
-                if (bands != null) {
-                    currentCustomEq = bands
-                    Log.d(TAG, "Custom EQ: " + bands.joinToString())
-                    changeUICustomEq(bands)
-                }
-            }
-            // Fit test result: [left, right], 0x01 = good fit
-            Cmd.FIT_STATUS_CHANGED -> {
-                if (payload != null && payload.size >= 2) {
-                    currentFitLeft = payload[0].toInt() and 0xFF
-                    currentFitRight = payload[1].toInt() and 0xFF
-                    Log.d(TAG, "Fit test result: left=" + currentFitLeft + " right=" + currentFitRight)
-                    sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_FIT_TEST_RESULT) {
-                        putExtra("left", currentFitLeft)
-                        putExtra("right", currentFitRight)
-                    }
-                }
-            }
-            // Find my device / ring state
-            Cmd.FIND_MY_DEVICE, Cmd.FIND_MY_DEVICE_STATE_NOTIFICATION -> {
-                if (payload != null && payload.isNotEmpty()) {
-                    val left = (payload[0].toInt() and 0xFF) != 0
-                    val rightRaw = payload.getOrNull(1)?.toInt()?.and(0xFF) ?: (payload[0].toInt() and 0xFF)
-                    val right = rightRaw != 0
-                    currentFmdLeft = left
-                    currentFmdRight = right
-                    sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_FMD_CHANGED) {
-                        putExtra("left", left)
-                        putExtra("right", right)
-                    }
-                }
-            }
             // Toggle configs response (0x100)
             Cmd.GET_TOGGLE_CONFIGS -> {
                 if (payload != null && payload.size >= 2) {
@@ -1299,44 +1242,6 @@ object RfcommController {
         }
     }
 
-    fun setCustomEq(bands: FloatArray) {
-        val normalized = FloatArray(MotoBudsCustomEq.BAND_COUNT) { index ->
-            (bands.getOrElse(index) { 0f }).coerceIn(-3f, 3f)
-        }
-        currentCustomEq = normalized
-        Log.i(TAG, "setCustomEq: " + normalized.joinToString())
-        changeUICustomEq(normalized)
-        scope.launch {
-            sendPacketSafe(MotoBudsCommands.customEq(normalized), "custom eq set")
-            delay(400)
-            sendPacketSafe(MotoBudsCommands.queryCustomEq(), "custom eq confirm")
-        }
-    }
-
-    fun queryCustomEq() {
-        scope.launch { sendPacketSafe(MotoBudsCommands.queryCustomEq(), "custom eq query") }
-    }
-
-    fun setFitTest(start: Boolean) {
-        if (start) {
-            currentFitLeft = null
-            currentFitRight = null
-        }
-        Log.i(TAG, "setFitTest: start=$start")
-        scope.launch { sendPacketSafe(MotoBudsCommands.fitTest(start), "fit test") }
-    }
-
-    fun setFindMyDevice(left: Boolean, right: Boolean) {
-        currentFmdLeft = left
-        currentFmdRight = right
-        Log.i(TAG, "setFindMyDevice: left=$left right=$right")
-        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_FMD_CHANGED) {
-            putExtra("left", left)
-            putExtra("right", right)
-        }
-        scope.launch { sendPacketSafe(MotoBudsCommands.findMyDevice(left, right), "find my device") }
-    }
-
     fun setDualDeviceConnection(enabled: Boolean) {
         val packet = Enums.dualDeviceConnectionPacket(enabled)
         Log.i(TAG, "setDualDeviceConnection: $enabled, packet=${packet.toHexString(HexFormat.UpperCase)}")
@@ -1369,12 +1274,6 @@ object RfcommController {
             ancImplementationOverride = ConfigManager.ancImplementationCapabilityOverride(),
             modelId = currentModelId,
         )
-    }
-
-    private fun changeUICustomEq(bands: FloatArray) {
-        sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_CUSTOM_EQ_CHANGED) {
-            putExtra("bands", bands)
-        }
     }
 
     /**

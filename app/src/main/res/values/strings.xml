@@ -141,22 +141,7 @@
     <string name="blur_bottom_bar_summary">Apply blur effect to the bottom navigation bar</string>
     <string name="liquid_glass">Liquid Glass</string>
     <string name="liquid_glass_summary">Enable liquid glass effect for bottom bar</string>
-    <string name="pod_tools_title">Pod tools</string>
     <string name="pod_tools_device_info">Device info</string>
     <string name="pod_tools_unknown_model">Not detected yet</string>
     <string name="pod_tools_features">Features</string>
-    <string name="pod_tools_eq">Custom equalizer</string>
-    <string name="pod_tools_eq_apply">Apply</string>
-    <string name="pod_tools_eq_query">Read from earbuds</string>
-    <string name="pod_tools_eq_reset">Reset</string>
-    <string name="pod_tools_fit_test">Fit test</string>
-    <string name="pod_tools_fit_start">Start</string>
-    <string name="pod_tools_fit_stop">Stop</string>
-    <string name="pod_tools_fit_left">Left</string>
-    <string name="pod_tools_fit_right">Right</string>
-    <string name="pod_tools_fit_good">Good fit</string>
-    <string name="pod_tools_fit_adjust">Adjust fit</string>
-    <string name="pod_tools_find_my_device">Find my device</string>
-    <string name="pod_tools_fmd_left">Ring left earbud</string>
-    <string name="pod_tools_fmd_right">Ring right earbud</string>
 </resources>
