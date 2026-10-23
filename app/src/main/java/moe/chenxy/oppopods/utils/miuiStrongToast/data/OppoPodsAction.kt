@@ -42,9 +42,6 @@ object OppoPodsAction {
     const val ACTION_ADAPTIVE_MODE_CHANGED = "xiuxiu.action.motobuds.adaptive_mode_changed"
     const val ACTION_CONFIG_CHANGED = "xiuxiu.action.motobuds.config_changed"
 
-    // Post-connect state verification (which feature queries answered)
-    const val ACTION_PODS_STATE_SYNCED = "xiuxiu.action.motobuds.pods_state_synced"
-
     // Detected device model / feature list (opcode 0x0000 + DeviceModelRegistry)
     const val ACTION_PODS_DEVICE_INFO_CHANGED = "xiuxiu.action.motobuds.pods_device_info_changed"
 }

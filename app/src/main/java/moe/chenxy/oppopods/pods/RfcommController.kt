@@ -102,8 +102,6 @@ object RfcommController {
     @Volatile private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
     @Volatile private var currentEqPreset: Int = -1
     @Volatile private var currentModelId: String? = null
-    private val syncPending = java.util.concurrent.ConcurrentHashMap<Int, Long>()
-    @Volatile private var syncEpoch: Int = 0
     @Volatile private var currentHiResMode: Boolean = false
     @Volatile private var currentDualDeviceConnection: Boolean = false
     @Volatile private var currentInEarLeft: Boolean = false
@@ -1458,17 +1456,55 @@ object RfcommController {
         setRegularBatteryLevel(lastTempBatt)
     }
 
+    private var batteryLevelUnsupported = false
+
     fun setRegularBatteryLevel(level: Int) {
+        if (batteryLevelUnsupported) return
         try {
             val d = _device ?: return
             val service = resolveAdapterService() ?: run {
                 Log.d(TAG, "setRegularBatteryLevel skipped: AdapterService not resolvable")
                 return
             }
-            callMethod(service, "setBatteryLevel", d, level, false)
+            if (!invokeSetBatteryLevel(service, d, level)) {
+                batteryLevelUnsupported = true
+                Log.d(TAG, "setRegularBatteryLevel unavailable on this ROM, disabling metadata push")
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "setRegularBatteryLevel failed", e)
+            Log.d(TAG, "setRegularBatteryLevel failed: " + e.message)
         }
+    }
+
+    /**
+     * A17 renamed the AdapterService battery setter, so match any three-argument method that
+     * mentions BatteryLevel and fill the arguments by their declared types instead of by name.
+     */
+    private fun invokeSetBatteryLevel(service: Any, device: BluetoothDevice, level: Int): Boolean {
+        var cls: Class<*>? = service.javaClass
+        while (cls != null) {
+            val method = cls.declaredMethods.firstOrNull { candidate ->
+                candidate.name.contains("BatteryLevel", ignoreCase = true) &&
+                    candidate.parameterTypes.size == 3
+            }
+            if (method != null) {
+                method.isAccessible = true
+                val args = arrayOfNulls<Any?>(3)
+                method.parameterTypes.forEachIndexed { index, type ->
+                    args[index] = when {
+                        type == BluetoothDevice::class.java -> device
+                        type == Int::class.javaPrimitiveType || type == Int::class.javaObjectType -> level
+                        type == Boolean::class.javaPrimitiveType || type == Boolean::class.javaObjectType -> false
+                        else -> null
+                    }
+                }
+                val result = runCatching { method.invoke(service, *args) }
+                if (result.isSuccess) return true
+                Log.d(TAG, "setBatteryLevel invoke failed: " + result.exceptionOrNull()?.message)
+                return false
+            }
+            cls = cls.superclass
+        }
+        return false
     }
 
     /**
