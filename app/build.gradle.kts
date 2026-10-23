@@ -22,8 +22,8 @@ android {
         applicationId = "com.xiuxiu391.motobuds"
         minSdk = 33
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3.1"
+        versionCode = 5
+        versionName = "1.3.2"
         buildConfigField("long", "BUILD_TIMESTAMP", System.currentTimeMillis().toString())
     }
 
