@@ -61,8 +61,6 @@ fun PodDetailPage(
     onVolumeBoostChange: (Boolean) -> Unit = {},
     hiResMode: Boolean = false,
     onHiResModeChange: (Boolean) -> Unit = {},
-    hiResSupported: Boolean = true,
-    volumeBoostSupported: Boolean = true,
     spatialAudioMode: Int = ConfigManager.SPATIAL_AUDIO_OFF,
     onSpatialAudioModeChange: (Int) -> Unit = {},
     dualDeviceConnection: Boolean = false,
@@ -135,8 +133,6 @@ fun PodDetailPage(
                     onVolumeBoostChange = onVolumeBoostChange,
                     hiResMode = hiResMode,
                     onHiResModeChange = onHiResModeChange,
-                    hiResSupported = hiResSupported,
-                    volumeBoostSupported = volumeBoostSupported,
                     spatialAudioMode = spatialAudioMode,
                     onSpatialAudioModeChange = onSpatialAudioModeChange,
                     dualDeviceConnection = dualDeviceConnection,
@@ -190,8 +186,6 @@ fun PodDetailPage(
             onVolumeBoostChange = onVolumeBoostChange,
             hiResMode = hiResMode,
             onHiResModeChange = onHiResModeChange,
-            hiResSupported = hiResSupported,
-            volumeBoostSupported = volumeBoostSupported,
             spatialAudioMode = spatialAudioMode,
             onSpatialAudioModeChange = onSpatialAudioModeChange,
             dualDeviceConnection = dualDeviceConnection,
@@ -236,8 +230,6 @@ private fun LazyListScope.podControlItems(
     onVolumeBoostChange: (Boolean) -> Unit,
     hiResMode: Boolean,
     onHiResModeChange: (Boolean) -> Unit,
-    hiResSupported: Boolean,
-    volumeBoostSupported: Boolean,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
     dualDeviceConnection: Boolean,
@@ -296,22 +288,6 @@ private fun LazyListScope.podControlItems(
                 checked = gameMode,
                 onCheckedChange = onGameModeChange
             )
-            if (volumeBoostSupported) {
-                SwitchPreference(
-                    title = stringResource(R.string.volume_boost),
-                    summary = stringResource(R.string.volume_boost_summary),
-                    checked = volumeBoost,
-                    onCheckedChange = onVolumeBoostChange
-                )
-            }
-            if (hiResSupported) {
-                SwitchPreference(
-                    title = stringResource(R.string.hi_res_mode),
-                    summary = stringResource(R.string.hi_res_mode_summary),
-                    checked = hiResMode,
-                    onCheckedChange = onHiResModeChange
-                )
-            }
             if (spatialAudioSupported) {
                 val spatialAudioOptions = listOf(
                     stringResource(R.string.off),

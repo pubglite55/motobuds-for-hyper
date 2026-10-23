@@ -31,7 +31,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,10 +38,11 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberDecoratedNavEntries
-import androidx.navigation3.ui.NavDisplay
+import kotlinx.serialization.Serializable
+import top.yukonga.miuix.kmp.nav.core.NavBackStack
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavEntryBuilder
+import top.yukonga.miuix.kmp.nav.core.NavKey
 import moe.chenxy.oppopods.OppoPodsApp
 import com.xiuxiu391.motobuds.R
 import moe.chenxy.oppopods.config.ConfigManager
@@ -79,18 +79,28 @@ import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 
+@Serializable
 sealed interface Screen : NavKey {
+    @Serializable
     data object Main : Screen
+
+    @Serializable
     data object About : Screen
+
+    @Serializable
     data object Theme : Screen
+
+    @Serializable
     data object DeviceCapabilities : Screen
+
+    @Serializable
     data object RfcommDebug : Screen
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainUI(
-    backStack: SnapshotStateList<Screen>,
+    backStack: NavBackStack,
     themeMode: MutableState<Int> = mutableStateOf(0),
     onThemeModeChange: (Int) -> Unit = {},
     accentMode: MutableState<Int> = mutableStateOf(0),
@@ -177,8 +187,6 @@ fun MainUI(
     val spatialAudioCapabilityOverride = remember { mutableStateOf(appConfig.spatialAudioCapabilityOverride) }
     val spatialSoundSwitchCapabilityOverride = remember { mutableStateOf(appConfig.spatialSoundSwitchCapabilityOverride) }
     val ancImplementationCapabilityOverride = remember { mutableStateOf(appConfig.ancImplementationCapabilityOverride) }
-    val hiResCapabilityOverride = remember { mutableStateOf(appConfig.hiResCapabilityOverride) }
-    val volumeBoostCapabilityOverride = remember { mutableStateOf(appConfig.volumeBoostCapabilityOverride) }
 
     val canShowDetailPage = hookConnected.value
     val showEarphoneDetail = canShowDetailPage && !showDevicePicker
@@ -195,8 +203,6 @@ fun MainUI(
         spatialAudioOverride = spatialAudioCapabilityOverride.value,
         spatialSoundSwitchOverride = spatialSoundSwitchCapabilityOverride.value,
         ancImplementationOverride = ancImplementationCapabilityOverride.value,
-        hiResOverride = hiResCapabilityOverride.value,
-        volumeBoostOverride = volumeBoostCapabilityOverride.value,
         modelId = podModelId,
     )
 
@@ -674,7 +680,7 @@ fun MainUI(
         }
     }
 
-    val entryProvider = entryProvider<Screen> {
+    val navContent: NavEntryBuilder.() -> Unit = {
         entry<Screen.Main> {
             MainTabsScaffold(
                 tabs = tabs,
@@ -708,8 +714,6 @@ fun MainUI(
                 displayVolumeBoost = volumeBoost.value,
                 onVolumeBoostChange = { setVolumeBoost(it) },
                 displayHiResMode = hiResMode.value,
-                hiResSupported = displayCapabilities.hiResSupported,
-                volumeBoostSupported = displayCapabilities.volumeBoostSupported,
                 onHiResModeChange = { setHiResMode(it) },
                 spatialAudioMode = spatialAudioMode.value,
                 onSpatialAudioModeChange = { setSpatialAudioMode(it) },
@@ -983,18 +987,6 @@ fun MainUI(
                             ConfigManager.updateAncImplementationCapabilityOverride(prefs, xposedService, it)
                             broadcastConfigChanged(context, "com.android.bluetooth")
                         },
-                        hiResCapabilityOverride = hiResCapabilityOverride,
-                        onHiResCapabilityOverrideChange = {
-                            hiResCapabilityOverride.value = it
-                            ConfigManager.updateHiResCapabilityOverride(prefs, xposedService, it)
-                            broadcastConfigChanged(context, "com.android.bluetooth")
-                        },
-                        volumeBoostCapabilityOverride = volumeBoostCapabilityOverride,
-                        onVolumeBoostCapabilityOverrideChange = {
-                            volumeBoostCapabilityOverride.value = it
-                            ConfigManager.updateVolumeBoostCapabilityOverride(prefs, xposedService, it)
-                            broadcastConfigChanged(context, "com.android.bluetooth")
-                        },
                         modelName = podModelName,
                         modelId = podModelId,
                         featureNames = podFeatures,
@@ -1041,20 +1033,16 @@ fun MainUI(
         }
     }
 
-    val entries = rememberDecoratedNavEntries(
-        backStack = backStack,
-        entryProvider = entryProvider
-    )
-
     NavDisplay(
-        entries = entries,
+        backStack = backStack,
         onBack = {
             if (backStack.size > 1) {
                 backStack.removeLast()
             } else {
                 (context as? Activity)?.finish()
             }
-        }
+        },
+        content = navContent,
     )
 }
 

@@ -102,10 +102,9 @@ dependencies {
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.blur)
-    implementation(libs.miuix.navigation3.ui)
 
-    // Navigation3
-    implementation(libs.navigation3.runtime)
+    // Miuix navigation (replaces androidx.navigation3)
+    implementation(libs.miuix.nav)
 
     // HyperOS Focus Island API
     implementation(libs.focus.api)

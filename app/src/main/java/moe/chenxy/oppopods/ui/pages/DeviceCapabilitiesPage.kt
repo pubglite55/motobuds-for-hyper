@@ -29,10 +29,6 @@ fun DeviceCapabilitiesPage(
     onSpatialSoundSwitchCapabilityOverrideChange: (Int) -> Unit = {},
     ancImplementationCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
     onAncImplementationCapabilityOverrideChange: (Int) -> Unit = {},
-    hiResCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
-    onHiResCapabilityOverrideChange: (Int) -> Unit = {},
-    volumeBoostCapabilityOverride: MutableState<Int> = mutableStateOf(ConfigManager.CAPABILITY_OVERRIDE_AUTO),
-    onVolumeBoostCapabilityOverrideChange: (Int) -> Unit = {},
     modelName: String? = null,
     modelId: String? = null,
     featureNames: List<String> = emptyList(),
@@ -111,20 +107,6 @@ fun DeviceCapabilitiesPage(
                     ),
                     selectedIndex = overrideValues.indexOf(ancImplementationCapabilityOverride.value).coerceAtLeast(0),
                     onSelectedIndexChange = { onAncImplementationCapabilityOverrideChange(overrideValues[it]) },
-                )
-                OverlayDropdownPreference(
-                    title = stringResource(R.string.hi_res_mode),
-                    summary = stringResource(R.string.capability_override_summary),
-                    items = overrideOptions,
-                    selectedIndex = overrideValues.indexOf(hiResCapabilityOverride.value).coerceAtLeast(0),
-                    onSelectedIndexChange = { onHiResCapabilityOverrideChange(overrideValues[it]) },
-                )
-                OverlayDropdownPreference(
-                    title = stringResource(R.string.volume_boost),
-                    summary = stringResource(R.string.capability_override_summary),
-                    items = overrideOptions,
-                    selectedIndex = overrideValues.indexOf(volumeBoostCapabilityOverride.value).coerceAtLeast(0),
-                    onSelectedIndexChange = { onVolumeBoostCapabilityOverrideChange(overrideValues[it]) },
                 )
             }
         }

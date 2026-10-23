@@ -102,6 +102,8 @@ object RfcommController {
     @Volatile private var currentSpatialAudioMode: Int = SpatialAudioMode.OFF
     @Volatile private var currentEqPreset: Int = -1
     @Volatile private var currentModelId: String? = null
+    private val syncPending = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+    @Volatile private var syncEpoch: Int = 0
     @Volatile private var currentHiResMode: Boolean = false
     @Volatile private var currentDualDeviceConnection: Boolean = false
     @Volatile private var currentInEarLeft: Boolean = false
@@ -200,7 +202,7 @@ object RfcommController {
     private fun saveState() {
         mContext?.let { ctx ->
             val prefs = ctx.getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE)
-            ConfigManager.saveLastState(prefs, currentAnc, currentGameMode, currentVolumeBoost, false)
+            ConfigManager.saveLastState(prefs, currentAnc, currentGameMode, currentVolumeBoost, currentHiResMode)
         }
     }
 
@@ -250,7 +252,7 @@ object RfcommController {
                 changeUISmartAncLevel(currentSmartAncLevel)
                 changeUIGameModeStatus(currentGameMode)
                 changeUIVolumeBoostStatus(currentVolumeBoost)
-                changeUIHiResModeStatus(false)
+                changeUIHiResModeStatus(currentHiResMode)
                 changeUITransparencyVocalEnhancementStatus(currentTransparencyVocalEnhancement)
                 changeUISpatialAudioStatus(currentSpatialAudioMode)
                 changeUIEqPreset(currentEqPreset)
@@ -562,6 +564,7 @@ object RfcommController {
         currentAnc = ConfigManager.getLastAncMode(prefs)
         currentGameMode = ConfigManager.getLastGameMode(prefs)
         currentVolumeBoost = ConfigManager.getLastVolumeBoost(prefs)
+        currentHiResMode = ConfigManager.getLastHiResMode(prefs)
         Log.d(TAG, "Adaptive support initial: ${currentCapabilities().adaptiveSupported}")
         Log.d(TAG, "Auto game mode initial: $autoGameModeEnabled")
         Log.d(TAG, "Game mode implementation initial: ${gameModeImplementation.preferenceValue}")
@@ -1155,6 +1158,7 @@ object RfcommController {
         Log.d(TAG, "setHiResMode: $enabled")
         currentHiResMode = enabled
         changeUIHiResModeStatus(enabled)
+        saveState()
         val payload = byteArrayOf(if (enabled) 0x01 else 0x00)
         val packet = MotoBudsPackets.buildPacket(
             opcode = Cmd.SET_HI_RES_MODE,
@@ -1272,8 +1276,6 @@ object RfcommController {
             spatialAudioOverride = ConfigManager.spatialAudioCapabilityOverride(),
             spatialSoundSwitchOverride = ConfigManager.spatialSoundSwitchCapabilityOverride(),
             ancImplementationOverride = ConfigManager.ancImplementationCapabilityOverride(),
-            hiResOverride = ConfigManager.hiResCapabilityOverride(),
-            volumeBoostOverride = ConfigManager.volumeBoostCapabilityOverride(),
             modelId = currentModelId,
         )
     }
@@ -1380,6 +1382,10 @@ object RfcommController {
         delay(50)
         sendPacketSafe(Enums.QUERY_VOLUME_BOOST, reason)
         delay(50)
+        sendPacketSafe(Enums.QUERY_HI_RES, reason)
+        delay(50)
+        sendPacketSafe(Enums.QUERY_SPATIAL_AUDIO, reason)
+        delay(50)
         sendPacketSafe(Enums.QUERY_DUAL_CONNECTION, reason)
     }
 
@@ -1455,11 +1461,33 @@ object RfcommController {
     fun setRegularBatteryLevel(level: Int) {
         try {
             val d = _device ?: return
-            val service = getObjectField(mContext, "mAdapterService")
+            val service = resolveAdapterService() ?: run {
+                Log.d(TAG, "setRegularBatteryLevel skipped: AdapterService not resolvable")
+                return
+            }
             callMethod(service, "setBatteryLevel", d, level, false)
         } catch (e: Exception) {
             Log.e(TAG, "setRegularBatteryLevel failed", e)
         }
+    }
+
+    /**
+     * A17 moved/renamed the AdapterService back-reference inside profile services, so look it up
+     * by several known field names and finally fall back to the static accessor.
+     */
+    private fun resolveAdapterService(): Any? {
+        val context = mContext ?: return null
+        listOf("mAdapterService", "mService", "mAdapter").forEach { name ->
+            runCatching { return getObjectField(context, name) }
+        }
+        runCatching {
+            val cls = Class.forName("com.android.bluetooth.btservice.AdapterService")
+            val method = listOf("getAdapterService", "getInstance")
+                .mapNotNull { runCatching { cls.getDeclaredMethod(it).apply { isAccessible = true } }.getOrNull() }
+                .firstOrNull() ?: return@runCatching
+            return method.invoke(null)
+        }
+        return null
     }
 
     private fun getObjectField(instance: Any?, fieldName: String): Any? {

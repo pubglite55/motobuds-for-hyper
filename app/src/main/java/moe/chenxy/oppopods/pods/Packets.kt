@@ -324,6 +324,11 @@ object Enums {
     )
 
     /** Get volume boost (opcode 0x313) */
+    val QUERY_HI_RES: ByteArray = MotoBudsPackets.buildPacket(
+        opcode = Cmd.GET_HI_RES_MODE,
+        type = MotoBudsPackets.TYPE_COMMAND_ACK,
+    )
+
     val QUERY_VOLUME_BOOST: ByteArray = MotoBudsPackets.buildPacket(
         opcode = Cmd.GET_VOLUME_BOOST_STATE
     )

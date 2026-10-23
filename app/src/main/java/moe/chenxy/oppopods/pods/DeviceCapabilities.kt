@@ -29,8 +29,6 @@ data class DeviceCapabilities(
     val spatialAudioSupported: Boolean,
     val spatialSoundSwitchSupported: Boolean,
     val ancImplementation: AncImplementation,
-    val hiResSupported: Boolean = false,
-    val volumeBoostSupported: Boolean = false,
 )
 
 /**
@@ -46,8 +44,6 @@ fun detectDeviceCapabilities(
     spatialAudioOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     spatialSoundSwitchOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     ancImplementationOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
-    hiResOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
-    volumeBoostOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     modelId: String? = null,
 ): DeviceCapabilities {
     val model = DeviceModelRegistry.find(modelId = modelId, deviceName = deviceName)
@@ -63,10 +59,6 @@ fun detectDeviceCapabilities(
     }
     // Known models are not "legacy" ANC devices; only the name fallback can report legacy.
     val legacyAncAuto = if (model != null) false else isLegacyAncDeviceByName(deviceName)
-    // Hi-Res (feature 109) and volume boost (feature 113) are per-model: e.g. Moto Buds+ has no
-    // volume boost. Users can force either capability from the module settings.
-    val hiResAuto = model?.supports(DeviceModelRegistry.FEATURE_HI_RES) ?: false
-    val volumeBoostAuto = model?.supports(DeviceModelRegistry.FEATURE_VOLUME_BOOST) ?: false
 
     return DeviceCapabilities(
         adaptiveSupported = resolveCapability(
@@ -84,14 +76,6 @@ fun detectDeviceCapabilities(
         ancImplementation = resolveAncImplementation(
             override = ancImplementationOverride,
             autoDetected = legacyAncAuto,
-        ),
-        hiResSupported = resolveCapability(
-            override = hiResOverride,
-            autoDetected = hiResAuto,
-        ),
-        volumeBoostSupported = resolveCapability(
-            override = volumeBoostOverride,
-            autoDetected = volumeBoostAuto,
         )
     )
 }
