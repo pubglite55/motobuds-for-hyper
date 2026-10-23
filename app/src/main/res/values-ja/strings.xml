@@ -146,4 +146,5 @@
     <string name="pod_tools_features">対応機能</string>
     <string name="focus_notification">フォーカス通知</string>
     <string name="focus_notification_summary">通知シェードにイヤホン操作カードを表示します</string>
+    <string name="state_sync_missing">イヤホンが応答しません: %1$s</string>
 </resources>

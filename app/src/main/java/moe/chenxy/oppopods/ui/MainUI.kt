@@ -132,6 +132,7 @@ fun MainUI(
     var podModelId by remember { mutableStateOf<String?>(null) }
     var podModelName by remember { mutableStateOf<String?>(null) }
     var podFeatures by remember { mutableStateOf<List<String>>(emptyList()) }
+    var stateSyncMissingCount by remember { mutableIntStateOf(0) }
     val tabs = remember { MainTab.entries.toList() }
     var selectedTab by remember { mutableStateOf(MainTab.Module) }
     var hasAppliedDefaultTab by remember { mutableStateOf(false) }
@@ -308,6 +309,20 @@ fun MainUI(
                         dualDeviceConnection.value = p1.getBooleanExtra("enabled", false)
                     }
 
+                    OppoPodsAction.ACTION_PODS_STATE_SYNCED -> {
+                        val missing = p1.getIntArrayExtra("missing") ?: IntArray(0)
+                        stateSyncMissingCount = missing.size
+                        if (missing.isNotEmpty()) {
+                            Log.w("MotoBuds", "state sync missing opcodes: " + missing.joinToString())
+                            val names = missing.joinToString { "0x" + Integer.toHexString(it) }
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.state_sync_missing, names),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    }
+
                     OppoPodsAction.ACTION_PODS_DEVICE_INFO_CHANGED -> {
                         podModelId = p1.getStringExtra("model_id")
                         podModelName = p1.getStringExtra("model_name")
@@ -395,6 +410,7 @@ fun MainUI(
             addAction(OppoPodsAction.ACTION_PODS_EQ_PRESET_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DEVICE_INFO_CHANGED)
+            addAction(OppoPodsAction.ACTION_PODS_STATE_SYNCED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTED)
             addAction(OppoPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED)
             addAction(OppoPodsAction.ACTION_PODS_DISCONNECTED)

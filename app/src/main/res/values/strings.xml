@@ -146,4 +146,5 @@
     <string name="pod_tools_features">Features</string>
     <string name="focus_notification">Focus notification</string>
     <string name="focus_notification_summary">Show a focus notification to control the earphones</string>
+    <string name="state_sync_missing">Earbuds did not answer: %1$s</string>
 </resources>

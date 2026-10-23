@@ -68,6 +68,8 @@ import java.util.concurrent.atomic.AtomicInteger
 object RfcommController {
     private const val TAG = "MotoBuds-RfcommController"
     private const val AUTO_RECONNECT_DELAY_MS = 120_000L
+    private const val STATE_SYNC_TIMEOUT_MS = 2_500L
+    private const val STATE_SYNC_RETRY_WAIT_MS = 1_500L
     private const val APP_UI_ACTIVE_TIMEOUT_MS = 75_000L
     private const val CONNECT_RETRY_MAX_ATTEMPTS = 5
     private const val CONNECT_RETRY_BASE_DELAY_MS = 2_000L
@@ -119,6 +121,10 @@ object RfcommController {
     private var appUiActiveUntilMs: Long = 0L
     private var firmwareVersion: String = ""
     private var profileVersion: String = ""
+
+    // Post-connect state verification: track which feature queries actually answered.
+    private val syncPending = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+    @Volatile private var syncEpoch: Int = 0
 
     data class StatusSnapshot(
         val battery: BatteryParams?,
@@ -892,6 +898,7 @@ object RfcommController {
     }
 
     private fun handleMotoBudsPacketInternal(opcode: Int, payload: ByteArray?, rawPacket: ByteArray) {
+        syncPending.remove(opcode)
         when (opcode) {
             // Battery (query response 0x005 or notification 0x009)
             Cmd.GET_BATTERY_LEVEL, Cmd.BATTERY_LEVEL_CHANGED -> {
@@ -1344,7 +1351,61 @@ object RfcommController {
         }
     }
 
+    /** Feature queries that must answer before the pushed UI state can be trusted. */
+    private val syncExpectations: List<Pair<Int, ByteArray>>
+        get() = listOf(
+            Cmd.GET_PROFILE_VERSION to Enums.QUERY_PROFILE_VERSION,
+            Cmd.GET_BATTERY_LEVEL to Enums.QUERY_BATTERY,
+            Cmd.GET_CURRENT_ANC_MODE to Enums.QUERY_ANC,
+            Cmd.GET_GAME_MODE to Enums.QUERY_GAME_MODE,
+            Cmd.GET_VOLUME_BOOST_STATE to Enums.QUERY_VOLUME_BOOST,
+            Cmd.GET_HI_RES_MODE to Enums.QUERY_HI_RES,
+            Cmd.GET_SPATIAL_AUDIO_STATE to Enums.QUERY_SPATIAL_AUDIO,
+            Cmd.GET_EQ_STATE to Enums.QUERY_EQ,
+            Cmd.GET_DUAL_CONNECTION_STATE to Enums.QUERY_DUAL_CONNECTION,
+            Cmd.GET_IN_EAR_DETECTION_STATE to Enums.QUERY_IN_EAR,
+        )
+
+    private fun beginStateSync() {
+        syncEpoch += 1
+        val deadline = SystemClock.elapsedRealtime() + STATE_SYNC_TIMEOUT_MS
+        syncPending.clear()
+        syncExpectations.forEach { (opcode, _) -> syncPending[opcode] = deadline }
+        Log.d(TAG, "State sync epoch=" + syncEpoch + " expecting " + syncPending.size + " responses")
+    }
+
+    /**
+     * Waits for the first pass, retries whatever stayed silent once, then reports which
+     * features never answered so the UI can show them as "not detected" instead of stale values.
+     */
+    private fun scheduleSyncVerification() {
+        val epoch = syncEpoch
+        scope.launch {
+            delay(STATE_SYNC_TIMEOUT_MS)
+            if (epoch != syncEpoch) return@launch
+            val retry = syncExpectations.filter { (opcode, _) -> syncPending.containsKey(opcode) }
+            if (retry.isNotEmpty()) {
+                Log.d(TAG, "State sync retrying " + retry.size + " unanswered queries")
+                retry.forEach { (_, query) -> sendPacketSafe(query, "state sync retry") }
+                delay(STATE_SYNC_RETRY_WAIT_MS)
+            }
+            if (epoch != syncEpoch) return@launch
+            val missing = syncPending.keys.toList().sorted()
+            syncPending.clear()
+            Log.i(TAG, "State sync epoch=" + epoch + " done, missing=" + missing)
+            sendAppStatusBroadcast(OppoPodsAction.ACTION_PODS_STATE_SYNCED) {
+                putExtra("epoch", epoch)
+                putExtra("missing", missing.toIntArray())
+            }
+            sendExternalPodsStatusBroadcast(OppoPodsAction.ACTION_PODS_STATE_SYNCED) {
+                putExtra("epoch", epoch)
+                putExtra("missing", missing.toIntArray())
+            }
+        }
+    }
+
     private suspend fun sendStatusQueryPackets(immediateReconnect: Boolean = true) {
+        beginStateSync()
         val reason = if (immediateReconnect) "status query" else null
         // Initial query (per protocol doc)
         sendPacketSafe(Enums.QUERY_PROFILE_VERSION, reason)
@@ -1385,6 +1446,7 @@ object RfcommController {
         sendPacketSafe(Enums.QUERY_SPATIAL_AUDIO, reason)
         delay(50)
         sendPacketSafe(Enums.QUERY_DUAL_CONNECTION, reason)
+        scheduleSyncVerification()
     }
 
     fun disconnectAudio(context: Context, device: BluetoothDevice?) {

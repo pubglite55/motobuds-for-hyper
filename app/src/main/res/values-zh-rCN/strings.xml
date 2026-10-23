@@ -147,4 +147,5 @@
     <string name="pod_tools_features">支持功能</string>
     <string name="focus_notification">焦点通知</string>
     <string name="focus_notification_summary">在通知栏显示耳机控制卡片</string>
+    <string name="state_sync_missing">耳机未响应：%1$s</string>
 </resources>
