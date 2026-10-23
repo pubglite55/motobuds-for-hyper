@@ -1272,6 +1272,8 @@ object RfcommController {
             spatialAudioOverride = ConfigManager.spatialAudioCapabilityOverride(),
             spatialSoundSwitchOverride = ConfigManager.spatialSoundSwitchCapabilityOverride(),
             ancImplementationOverride = ConfigManager.ancImplementationCapabilityOverride(),
+            hiResOverride = ConfigManager.hiResCapabilityOverride(),
+            volumeBoostOverride = ConfigManager.volumeBoostCapabilityOverride(),
             modelId = currentModelId,
         )
     }

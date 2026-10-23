@@ -54,7 +54,6 @@ fun SettingsPage(
     onOpenDeviceCapabilities: () -> Unit = {},
     fakeDeviceId: MutableState<String> = mutableStateOf(ConfigManager.DEFAULT_FAKE_DEVICE_ID),
     onFakeDeviceIdChange: (String) -> Unit = {},
-    onOpenLeAudio: () -> Unit = {},
     onOpenTheme: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     lowBatteryReminder: MutableState<Boolean> = mutableStateOf(true),
@@ -74,9 +73,14 @@ fun SettingsPage(
         stringResource(R.string.log_level_basic),
         stringResource(R.string.log_level_debug),
     )
-    val islandModeValues = listOf(ConfigManager.ISLAND_MODE_NONE, ConfigManager.ISLAND_MODE_MODULE)
+    val islandModeValues = listOf(
+        ConfigManager.ISLAND_MODE_NONE,
+        ConfigManager.ISLAND_MODE_OFFICIAL,
+        ConfigManager.ISLAND_MODE_MODULE,
+    )
     val islandModeOptions = listOf(
         stringResource(R.string.island_mode_none),
+        stringResource(R.string.island_mode_official),
         stringResource(R.string.island_mode_module),
     )
     val islandShowTimingOptions = listOf(
@@ -178,16 +182,6 @@ fun SettingsPage(
                     summary = stringResource(R.string.hide_desktop_icon_summary),
                     checked = desktopIconHidden.value,
                     onCheckedChange = { onDesktopIconHiddenChange(it) }
-                )
-            }
-        }
-
-        item {
-            Card(modifier = Modifier.padding(top = 12.dp)) {
-                BasicComponent(
-                    title = stringResource(R.string.le_audio_title),
-                    summary = stringResource(R.string.le_audio_summary),
-                    onClick = onOpenLeAudio,
                 )
             }
         }

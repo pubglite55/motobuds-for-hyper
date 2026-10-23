@@ -10,7 +10,6 @@ import io.github.libxposed.api.XposedModuleInterface.HotReloadedParam
 import io.github.libxposed.api.XposedModuleInterface.HotReloadingParam
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import moe.chenxy.oppopods.config.ConfigManager
-import moe.chenxy.oppopods.hook.leaudio.OppoLeAudioHook
 import moe.chenxy.oppopods.hook.milink.MiLinkServiceHook
 
 class HookEntry : XposedModule() {
@@ -66,8 +65,6 @@ class HookEntry : XposedModule() {
     private fun loadHooksForPackage(packageName: String, classLoader: ClassLoader) {
         when (packageName) {
             "com.android.bluetooth" -> {
-                // 2.x LE Audio compatibility path (OPPOLeaConnect port)
-                loadHook(OppoLeAudioHook(), classLoader, packageName)
                 loadHook(HeadsetStateDispatcher, classLoader, packageName)
                 loadHook(BluetoothUpstreamHeadsetHook(), classLoader, packageName)
             }

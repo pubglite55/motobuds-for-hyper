@@ -56,7 +56,6 @@ import moe.chenxy.oppopods.pods.DeviceModelRegistry
 import moe.chenxy.oppopods.pods.detectDeviceCapabilities
 import moe.chenxy.oppopods.ui.pages.AboutPage
 import moe.chenxy.oppopods.ui.pages.DeviceCapabilitiesPage
-import moe.chenxy.oppopods.ui.pages.LeAudioSettingsPage
 import moe.chenxy.oppopods.ui.pages.RfcommDebugPage
 import moe.chenxy.oppopods.ui.pages.ThemeSettingsPage
 import moe.chenxy.oppopods.utils.RootManager
@@ -85,7 +84,6 @@ sealed interface Screen : NavKey {
     data object About : Screen
     data object Theme : Screen
     data object DeviceCapabilities : Screen
-    data object LeAudio : Screen
     data object RfcommDebug : Screen
 }
 
@@ -169,7 +167,6 @@ fun MainUI(
     val desktopIconHidden = remember { mutableStateOf(isLauncherIconHidden(context)) }
     val logLevel = remember { mutableStateOf(appConfig.logLevel) }
     val fakeDeviceId = remember { mutableStateOf(appConfig.fakeDeviceId) }
-    val leAudioConfig = remember { mutableStateOf(appConfig.leAudio) }
     val focusNotification = remember { mutableStateOf(appConfig.focusNotification) }
     val islandMode = remember { mutableStateOf(appConfig.islandMode) }
     val islandShowTimings = remember { mutableStateOf(appConfig.islandShowTimings) }
@@ -180,6 +177,8 @@ fun MainUI(
     val spatialAudioCapabilityOverride = remember { mutableStateOf(appConfig.spatialAudioCapabilityOverride) }
     val spatialSoundSwitchCapabilityOverride = remember { mutableStateOf(appConfig.spatialSoundSwitchCapabilityOverride) }
     val ancImplementationCapabilityOverride = remember { mutableStateOf(appConfig.ancImplementationCapabilityOverride) }
+    val hiResCapabilityOverride = remember { mutableStateOf(appConfig.hiResCapabilityOverride) }
+    val volumeBoostCapabilityOverride = remember { mutableStateOf(appConfig.volumeBoostCapabilityOverride) }
 
     val canShowDetailPage = hookConnected.value
     val showEarphoneDetail = canShowDetailPage && !showDevicePicker
@@ -196,6 +195,8 @@ fun MainUI(
         spatialAudioOverride = spatialAudioCapabilityOverride.value,
         spatialSoundSwitchOverride = spatialSoundSwitchCapabilityOverride.value,
         ancImplementationOverride = ancImplementationCapabilityOverride.value,
+        hiResOverride = hiResCapabilityOverride.value,
+        volumeBoostOverride = volumeBoostCapabilityOverride.value,
         modelId = podModelId,
     )
 
@@ -707,6 +708,8 @@ fun MainUI(
                 displayVolumeBoost = volumeBoost.value,
                 onVolumeBoostChange = { setVolumeBoost(it) },
                 displayHiResMode = hiResMode.value,
+                hiResSupported = displayCapabilities.hiResSupported,
+                volumeBoostSupported = displayCapabilities.volumeBoostSupported,
                 onHiResModeChange = { setHiResMode(it) },
                 spatialAudioMode = spatialAudioMode.value,
                 onSpatialAudioModeChange = { setSpatialAudioMode(it) },
@@ -802,7 +805,6 @@ fun MainUI(
                 spatialAudioCapabilityOverride = spatialAudioCapabilityOverride,
                 spatialSoundSwitchCapabilityOverride = spatialSoundSwitchCapabilityOverride,
                 onOpenDeviceCapabilities = { backStack.add(Screen.DeviceCapabilities) },
-                onOpenLeAudio = { backStack.add(Screen.LeAudio) },
                 onOpenRfcommDebug = { backStack.add(Screen.RfcommDebug) },
                 fakeDeviceId = fakeDeviceId,
                 onFakeDeviceIdChange = {
@@ -981,47 +983,21 @@ fun MainUI(
                             ConfigManager.updateAncImplementationCapabilityOverride(prefs, xposedService, it)
                             broadcastConfigChanged(context, "com.android.bluetooth")
                         },
+                        hiResCapabilityOverride = hiResCapabilityOverride,
+                        onHiResCapabilityOverrideChange = {
+                            hiResCapabilityOverride.value = it
+                            ConfigManager.updateHiResCapabilityOverride(prefs, xposedService, it)
+                            broadcastConfigChanged(context, "com.android.bluetooth")
+                        },
+                        volumeBoostCapabilityOverride = volumeBoostCapabilityOverride,
+                        onVolumeBoostCapabilityOverrideChange = {
+                            volumeBoostCapabilityOverride.value = it
+                            ConfigManager.updateVolumeBoostCapabilityOverride(prefs, xposedService, it)
+                            broadcastConfigChanged(context, "com.android.bluetooth")
+                        },
                         modelName = podModelName,
                         modelId = podModelId,
                         featureNames = podFeatures,
-                    )
-                }
-            }
-        }
-        entry<Screen.LeAudio> {
-            val leAudioScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = stringResource(R.string.le_audio_title),
-                        largeTitle = stringResource(R.string.le_audio_title),
-                        scrollBehavior = leAudioScrollBehavior,
-                        navigationIcon = {
-                            IconButton(onClick = { backStack.removeLast() }) {
-                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
-                            }
-                        }
-                    )
-                }
-            ) { padding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(backgroundColor)
-                        .padding(padding),
-                ) {
-                    LeAudioSettingsPage(
-                        modifier = Modifier
-                            .overScrollVertical()
-                            .nestedScroll(leAudioScrollBehavior.nestedScrollConnection),
-                        contentPadding = PaddingValues(bottom = pageBottomContentPadding),
-                        config = leAudioConfig.value,
-                        onConfigChange = {
-                            leAudioConfig.value = it.normalized()
-                            ConfigManager.updateLeAudio(prefs, xposedService, leAudioConfig.value)
-                            broadcastConfigChanged(context, "com.android.bluetooth")
-                        },
                     )
                 }
             }

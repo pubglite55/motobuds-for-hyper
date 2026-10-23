@@ -20,7 +20,7 @@ import kotlinx.serialization.json.Json
 data class AppConfig(
     val fakeDeviceId: String = ConfigManager.DEFAULT_FAKE_DEVICE_ID,
     val logLevel: Int = ConfigManager.LOG_LEVEL_BASIC,
-    val islandMode: Int = ConfigManager.ISLAND_MODE_MODULE,
+    val islandMode: Int = ConfigManager.ISLAND_MODE_OFFICIAL,
     val islandShowTimings: Set<Int> = emptySet(),
     val notificationClickAction: Int = ConfigManager.NOTIFICATION_CLICK_MODULE_POPUP,
     val moreClickAction: Int = ConfigManager.MORE_CLICK_MODULE,
@@ -28,7 +28,8 @@ data class AppConfig(
     val spatialAudioCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     val spatialSoundSwitchCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     val ancImplementationCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
-    val leAudio: LeAudioConfig = LeAudioConfig(),
+    val hiResCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
+    val volumeBoostCapabilityOverride: Int = ConfigManager.CAPABILITY_OVERRIDE_AUTO,
     val focusNotification: Boolean = true,
 )
 
@@ -60,6 +61,8 @@ object ConfigManager {
     const val PREF_KEY_SPATIAL_SOUND_SWITCH_CAPABILITY_OVERRIDE = "spatial_sound_switch_capability_override"
     const val PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE = "anc_implementation_capability_override"
     const val PREF_KEY_FOCUS_NOTIFICATION = "focus_notification"
+    const val PREF_KEY_HI_RES_CAPABILITY_OVERRIDE = "hi_res_capability_override"
+    const val PREF_KEY_VOLUME_BOOST_CAPABILITY_OVERRIDE = "volume_boost_capability_override"
     const val PREF_KEY_LAST_ANC_MODE = "last_anc_mode"
     const val PREF_KEY_LAST_GAME_MODE = "last_game_mode"
     const val PREF_KEY_LAST_VOLUME_BOOST = "last_volume_boost"
@@ -134,6 +137,10 @@ object ConfigManager {
 
     fun ancImplementationCapabilityOverride(): Int = current().ancImplementationCapabilityOverride.normalizedCapabilityOverride()
 
+    fun hiResCapabilityOverride(): Int = current().hiResCapabilityOverride.normalizedCapabilityOverride()
+
+    fun volumeBoostCapabilityOverride(): Int = current().volumeBoostCapabilityOverride.normalizedCapabilityOverride()
+
     fun fakeSupport(): String = "${fakeDeviceId()},000000000000000010000000"
 
     fun updateFakeDeviceId(prefs: SharedPreferences, fakeDeviceId: String) {
@@ -191,8 +198,14 @@ object ConfigManager {
         save(prefs, service, config)
     }
 
-    fun updateLeAudio(prefs: SharedPreferences, service: XposedService?, leAudio: LeAudioConfig) {
-        save(prefs, service, current().copy(leAudio = leAudio.normalized()))
+    fun updateHiResCapabilityOverride(prefs: SharedPreferences, service: XposedService?, override: Int) {
+        val config = current().copy(hiResCapabilityOverride = override.normalizedCapabilityOverride())
+        save(prefs, service, config)
+    }
+
+    fun updateVolumeBoostCapabilityOverride(prefs: SharedPreferences, service: XposedService?, override: Int) {
+        val config = current().copy(volumeBoostCapabilityOverride = override.normalizedCapabilityOverride())
+        save(prefs, service, config)
     }
 
     fun updateFocusNotification(prefs: SharedPreferences, service: XposedService?, enabled: Boolean) {
@@ -250,6 +263,8 @@ object ConfigManager {
             .putInt(PREF_KEY_SPATIAL_SOUND_SWITCH_CAPABILITY_OVERRIDE, config.spatialSoundSwitchCapabilityOverride)
             .putInt(PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE, config.ancImplementationCapabilityOverride)
             .putBoolean(PREF_KEY_FOCUS_NOTIFICATION, config.focusNotification)
+            .putInt(PREF_KEY_HI_RES_CAPABILITY_OVERRIDE, config.hiResCapabilityOverride)
+            .putInt(PREF_KEY_VOLUME_BOOST_CAPABILITY_OVERRIDE, config.volumeBoostCapabilityOverride)
             .commit()
     }
 
@@ -266,6 +281,8 @@ object ConfigManager {
         val directAncImplementationCapabilityOverride = prefs.getInt(PREF_KEY_ANC_IMPLEMENTATION_CAPABILITY_OVERRIDE, Int.MIN_VALUE)
         val directFocusNotification = prefs.takeIf { it.contains(PREF_KEY_FOCUS_NOTIFICATION) }
             ?.getBoolean(PREF_KEY_FOCUS_NOTIFICATION, true)
+        val directHiResCapabilityOverride = prefs.getInt(PREF_KEY_HI_RES_CAPABILITY_OVERRIDE, Int.MIN_VALUE)
+        val directVolumeBoostCapabilityOverride = prefs.getInt(PREF_KEY_VOLUME_BOOST_CAPABILITY_OVERRIDE, Int.MIN_VALUE)
         val raw = prefs.getString(PREF_KEY_CONFIG_JSON, null)
         logPrefsSnapshot(source, prefs, directFakeDeviceId, raw)
         val config = raw?.let {
@@ -285,6 +302,8 @@ object ConfigManager {
                 spatialSoundSwitchCapabilityOverride = directSpatialSoundSwitchCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.spatialSoundSwitchCapabilityOverride,
                 ancImplementationCapabilityOverride = directAncImplementationCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.ancImplementationCapabilityOverride,
                 focusNotification = directFocusNotification ?: config.focusNotification,
+                hiResCapabilityOverride = directHiResCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.hiResCapabilityOverride,
+                volumeBoostCapabilityOverride = directVolumeBoostCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.volumeBoostCapabilityOverride,
             ).normalized()
         }
         return config.copy(
@@ -298,6 +317,9 @@ object ConfigManager {
             spatialAudioCapabilityOverride = directSpatialAudioCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.spatialAudioCapabilityOverride,
             spatialSoundSwitchCapabilityOverride = directSpatialSoundSwitchCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.spatialSoundSwitchCapabilityOverride,
             ancImplementationCapabilityOverride = directAncImplementationCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.ancImplementationCapabilityOverride,
+            focusNotification = directFocusNotification ?: config.focusNotification,
+            hiResCapabilityOverride = directHiResCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.hiResCapabilityOverride,
+            volumeBoostCapabilityOverride = directVolumeBoostCapabilityOverride.takeIf { it != Int.MIN_VALUE } ?: config.volumeBoostCapabilityOverride,
         ).normalized()
     }
 
@@ -312,7 +334,8 @@ object ConfigManager {
         spatialAudioCapabilityOverride = spatialAudioCapabilityOverride.normalizedCapabilityOverride(),
         spatialSoundSwitchCapabilityOverride = spatialSoundSwitchCapabilityOverride.normalizedCapabilityOverride(),
         ancImplementationCapabilityOverride = ancImplementationCapabilityOverride.normalizedCapabilityOverride(),
-        leAudio = leAudio.normalized(),
+        hiResCapabilityOverride = hiResCapabilityOverride.normalizedCapabilityOverride(),
+        volumeBoostCapabilityOverride = volumeBoostCapabilityOverride.normalizedCapabilityOverride(),
     )
 
     private fun String.normalizedFakeDeviceId(): String = trim().takeIf { it.isNotEmpty() } ?: DEFAULT_FAKE_DEVICE_ID
@@ -343,9 +366,6 @@ object ConfigManager {
 
     private fun changedFields(oldConfig: AppConfig, newConfig: AppConfig): List<String> {
         return buildList {
-            if (oldConfig.leAudio != newConfig.leAudio) {
-                add("leAudio=" + oldConfig.leAudio + "->" + newConfig.leAudio)
-            }
             if (oldConfig.fakeDeviceId != newConfig.fakeDeviceId) {
                 add("fakeDeviceId=${oldConfig.fakeDeviceId}->${newConfig.fakeDeviceId}")
             }
